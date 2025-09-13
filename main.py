@@ -1,11 +1,20 @@
 """
 MCP Server Template
 """
-
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+from dotenv import load_dotenv
+from connectors import teams_connector
+
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
+
+env_file = os.getenv("ENV_FILE", ".env.production")
+
+print(f" Loading env file: {env_file}")
+load_dotenv(env_file)
 
 
 @mcp.tool(

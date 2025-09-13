@@ -14,7 +14,7 @@ GRAPH_SCOPE = ["https://graph.microsoft.com/.default"]
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 def _get_token() -> str:
-    """Récupère un token d’accès via MSAL."""
+    """Récupère un access_token Graph via MSAL (application permission)."""
     app = ConfidentialClientApplication(
         CLIENT_ID,
         authority=f"https://login.microsoftonline.com/{TENANT_ID}",
@@ -27,8 +27,8 @@ def _get_token() -> str:
         raise RuntimeError(f"Azure AD auth error: {result}")
     return result["access_token"]
 
-async def unread_and_mentions():
-    """Retourne un résumé Teams : nombre de messages récents et mentions."""
+async def unread_and_mentions() -> str:
+    """Résumé Teams : nombre de messages récents et mentions sur un canal donné."""
     if not USE_LIVE:
         return "Teams (mock) → 42 messages récents, 5 mentions (@)."
 
@@ -38,7 +38,7 @@ async def unread_and_mentions():
     token = _get_token()
     headers = {"Authorization": f"Bearer {token}"}
     url = f"{GRAPH_BASE}/teams/{TEAM_ID}/channels/{CHANNEL_ID}/messages"
-    params = {"$top": "30"}  # messages récents
+    params = {"$top": "30"}  # lit 30 derniers messages
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.get(url, headers=headers, params=params)
