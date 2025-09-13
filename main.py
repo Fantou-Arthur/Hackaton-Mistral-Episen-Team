@@ -4,6 +4,10 @@ MCP Server Template
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+from tools.methods import ToolsMethods
+from tools.mistarl import MistralAI
+
+MistralClient = MistralAI() 
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
@@ -36,11 +40,13 @@ async def teams_summary() -> str:
     title="Trello Summary",
     description="Trello Summary tool",
 )
-async def trello_summary() -> str:
+async def trello_summary(project_name: str = Field(description="The name of the project the user want to summarize")) -> str:
     """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
-    #return await trello_connector.sprint_summary()
-    pass
-
+    boardId = MistralClient.getboardId("hackathon planning")
+    if boardId is None:
+        return "No project found with the given name."
+    else:
+        return ToolsMethods().boardDataForSummary(boardId)
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

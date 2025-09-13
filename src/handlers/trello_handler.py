@@ -10,6 +10,7 @@ class TrelloHandler:
         self.api = trello_connector.TrelloConnector(
             api_key=os.getenv("TRELLO_API_KEY"), 
             token=os.getenv("TRELLO_TOKEN")
+
         )
 
     def handleGetBoards(self):
@@ -29,8 +30,24 @@ class TrelloHandler:
         except Exception as e:
             print(f"Error fetching boards: {e}")
             return None
+        
+    def handleGetBoardDetails(self, board_id):
+        try:
+            board = self.api.get(f"boards/{board_id}")
+            import json
+            return {
+                'content': [
+                    {
+                        'type': 'text',
+                        'text': json.dumps([{'id': board['id'], 'name': board['name'], 'url': board['url'], 'desc': board['desc']}], indent=2)
+                    }
+                ]
+            }
+        except Exception as e:
+            print(f"Error fetching board details: {e}")
+            return None
     
-    def handleGetList(self, board_id='68c54ba62ed16c399220c1bd'):
+    def handleGetListForBoard(self, board_id):
         try:
             lists = self.api.get(f"boards/{board_id}/lists")
             openLists = [lst for lst in lists if not lst.get('closed', False)]
@@ -40,7 +57,7 @@ class TrelloHandler:
                 'content': [
                     {
                         'type': 'text',
-                        'text': json.dumps([{'id': l['id'], 'name': l['name']} for l in openLists], indent=2)
+                        'text': json.dumps([{'id': l['id'], 'name': l['name'], 'idBoard': l['idBoard']} for l in openLists], indent=2)
                     }
                 ]
             }
@@ -48,7 +65,7 @@ class TrelloHandler:
             print(f"Error fetching lists: {e}")
             return None
         
-    def handleGetCards(self, board_id='68c54ba62ed16c399220c1bd'):
+    def handleGetCardsForBoard(self, board_id):
         try:
             cards = self.api.get(f"boards/{board_id}/cards")
             import json
@@ -56,7 +73,7 @@ class TrelloHandler:
                 'content': [
                     {
                         'type': 'text',
-                        'text': json.dumps([{'id': c['id'], 'name': c['name'], 'due': c['due'], 'idList': c['idList'], 'idBoard': c['idBoard']} for c in cards], indent=2)
+                        'text': json.dumps([{'id': c['id'], 'name': c['name'], 'due': c['due'], 'idList': c['idList'], 'idBoard': c['idBoard'], 'dueComplete': c['dueComplete'], 'desc': c['desc'], 'idMembers': c['idMembers']} for c in cards], indent=2)
                     }
                 ]
             }
@@ -64,25 +81,4 @@ class TrelloHandler:
             print(f"Error fetching cards: {e}")
             return None
     
-    def handleGetBoardDetails(self, board_id='68c54ba62ed16c399220c1bd'):
-        try:
-            board = self.api.get(f"boards/{board_id}")
-            lists = self.api.get(f"boards/{board_id}/lists")
-            cards = self.api.get(f"boards/{board_id}/cards")
-            
-            import json
-            return {
-                'content': [
-                    {
-                        'type': 'text',
-                        'text': json.dumps({
-                            'board': board,
-                            'lists': lists,
-                            'cards': cards
-                        }, indent=2)
-                    }
-                ]
-            }
-        except Exception as e:
-            print(f"Error fetching board details: {e}")
-            return None
+    

@@ -10,5 +10,6 @@ dependencies = [
     "mcp>=1.14.0",
     "pydantic",
     "requests",
-    "python-dotenv"
+    "python-dotenv",
+    "mistralai"
 ]
