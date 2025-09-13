@@ -26,7 +26,10 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
     Greetings = "Hello dear user :"+User
     return Greetings
 
-
+@mcp.tool()
+async def teams_summary() -> str:
+    """Résumé Teams (messages récents + mentions)."""
+    return await teams_connector.unread_and_mentions()
 
 
 @mcp.tool(
