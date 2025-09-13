@@ -5,8 +5,6 @@ MCP Server Template
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-import mcp.types as types
-
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
 
@@ -37,25 +35,9 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
 )
 async def trello_summary() -> str:
     """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
-    return await trello_connector.sprint_summary()
+    #return await trello_connector.sprint_summary()
+    pass
 
-
-
-
-@mcp.tool(
-    title="Slack Summary",
-    description="Slack Summary tool",
-)
-async def slack_summary() -> str:
-    """Résumé des unread messages et mentions Slack."""
-    return await slack_connector.unread_mentions()
-
-@mcp.tool(
-    title="Google Analytics Website Summary",
-    description="Google Analytics Website Summary tool",)
-async def ga4_summary() -> str:
-    """Résumé des sessions utilisateurs sur les 7 derniers jours (GA4)."""
-    return await ga4_connector.sessions_report()
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

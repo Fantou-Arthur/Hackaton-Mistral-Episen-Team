@@ -8,4 +8,7 @@ dependencies = [
     "google>=3.0.0",
     "google-analytics-data>=0.18.19",
     "mcp>=1.14.0",
+    "pydantic",
+    "requests",
+    "python-dotenv"
 ]

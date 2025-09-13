@@ -2,7 +2,6 @@
 
 import requests
 
-
 class TrelloConnector:
     def __init__(self, api_key, token, base_url="https://api.trello.com/1/"):
         self.api_key = api_key

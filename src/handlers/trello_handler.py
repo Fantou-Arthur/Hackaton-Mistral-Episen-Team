@@ -1,11 +1,15 @@
-import trello_connector 
+
+import os
+from dotenv import load_dotenv
+from connectors import trello_connector 
 
 class TrelloHandler:
 
     def __init__(self):
+        load_dotenv()
         self.api = trello_connector.TrelloConnector(
-            api_key="ce0dfb7229d36131fbf8e55f57a31c77", # Have to change to env variable
-            token="ATTA15d576b09c4f38a65dd519ead422ad8020835dca3adf076f01c962a2dc71cbb9FB69C26D"
+            api_key=os.getenv("TRELLO_API_KEY"), 
+            token=os.getenv("TRELLO_TOKEN")
         )
 
     def handleGetBoards(self):
