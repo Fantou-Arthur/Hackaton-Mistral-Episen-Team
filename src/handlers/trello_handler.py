@@ -79,3 +79,24 @@ class TrelloHandler:
         except Exception as e:
             print(f"Error fetching overdue tasks: {e}")
             return None
+    
+    # Comments on cards
+    def handleGetCommentsForCard(self, card_id):
+        try:
+            actions = self.api.get(f"cards/{card_id}/actions", params={'filter': 'commentCard'})
+            comments = [a for a in actions if a['type'] == 'commentCard']
+            return [{'id': c['id'], 'data': c['data'], 'memberCreator': c['memberCreator'], 'date': c['date']} for c in comments]
+                    
+        except Exception as e:
+            print(f"Error fetching comments: {e}")
+            return None
+    
+    def handleAddCommentToCard(self, card_id, comment_text):
+        try:
+            payload = {'text': comment_text}
+            comment = self.api.post(f"cards/{card_id}/actions/comments", data=payload)
+            return {'id': comment['id'], 'data': comment['data'], 'memberCreator': comment['memberCreator'], 'date': comment['date']}
+                    
+        except Exception as e:
+            print(f"Error adding comment: {e}")
+            return None

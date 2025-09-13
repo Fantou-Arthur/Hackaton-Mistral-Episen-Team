@@ -43,3 +43,11 @@ class ToolsMethods:
         except Exception as e:
             print(f"Error fetching overdue tasks: {e}")
             return None
+        
+    def addCommentToCard(self, card_id, comment_text):
+        try:
+            response = self.trello.handleAddCommentToCard(card_id, comment_text)
+            return json.dumps(response, indent=2)
+        except Exception as e:
+            print(f"Error adding comment to card: {e}")
+            return None

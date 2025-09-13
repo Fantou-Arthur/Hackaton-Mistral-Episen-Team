@@ -60,6 +60,14 @@ async def trello_project_overdue_tasks(project_name: str = Field(description="Th
         return "No project found with the given name."
     else:
         return ToolsMethods().getOverdueTaskWithMembers(boardId, dueDate)
+    
+@mcp.tool(
+    title="Add Comment to Trello Task",
+    description="Add a comment to a specific Trello Task",
+)
+async def add_comment_to_trello_task(card_id: str = Field(description="The ID of the Trello Task to comment on"), comment_text: str = Field(description="The comment text to add")) -> str:
+    return ToolsMethods().addCommentToCard(card_id, comment_text)
+
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
