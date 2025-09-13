@@ -65,6 +65,24 @@ async def teams_summary() -> str:
         print(f"Une erreur s'est produite dans teams_summary: {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams: {e}."
 
+@mcp.tool(
+    title="Teams Read Thread",
+    description="Reads the content of a specific message thread in the main Teams channel, given the parent message ID.",
+)
+async def teams_read_thread(parent_message_id: str) -> str:
+    """Reads a specific thread."""
+    try:
+        handler = TeamsHandler()
+        response = handler.handleGetThreadMessages(parent_message_id)
+
+        if response and 'content' in response and isinstance(response['content'], list) and len(response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
+        else:
+            return "Impossible de lire le thread de Teams (réponse vide)."
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la lecture du thread : {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
+
 
 @mcp.tool(
     title="Send_Message_Teams",

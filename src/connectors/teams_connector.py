@@ -15,9 +15,6 @@ class TeamsConnector:
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
         """
-        # Note: Il est recommandé de charger les variables d'environnement
-        # (ex: avec `from dotenv import load_dotenv; load_dotenv()`)
-        # avant d'instancier ce connecteur.
         self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID")
         self.client_id = client_id or os.getenv("AZURE_CLIENT_ID")
         self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET")
@@ -65,7 +62,6 @@ class TeamsConnector:
         headers = self._get_auth_headers()
         response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
         response.raise_for_status()
-        # Certaines réponses GET réussies peuvent ne pas avoir de corps (ex: 204 No Content)
         return response.json() if response.content else None
 
     def post(self, path, data=None):

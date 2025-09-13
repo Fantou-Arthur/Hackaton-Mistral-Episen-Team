@@ -42,29 +42,22 @@ class TeamsHandler:
 
         try:
             self._check_config()
-
-            # URL de l'API Graph pour les messages du canal sans aucun filtre ni option
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
-
-            # Effectue la requête GET
             response_data = self.api.get(path)
 
-            # Vérifie si la réponse n'est pas None avant d'essayer d'y accéder
             if response_data is None:
-                return self._format_response("L'API a renvoyé une réponse vide. Il n'y a peut-être aucun message dans le canal.")
+                return self._format_response(
+                    "L'API a renvoyé une réponse vide. Il n'y a peut-être aucun message dans le canal.")
 
-            # Récupère les messages de manière sécurisée
             messages = response_data.get('value', [])
             result_parts = [f"Nombre total de messages trouvés dans le canal : {len(messages)}\n"]
 
             for i, message in enumerate(messages, 1):
                 created_at = message.get('createdDateTime')
-
                 sender = message.get('from')
                 sender_name = 'Nom inconnu'
                 if sender and sender.get('user'):
                     sender_name = sender['user'].get('displayName', 'Nom inconnu')
-
                 message_body = message.get('body', {}).get('content', 'Pas de contenu')
 
                 result_parts.append("--- Message {} ---".format(i))
@@ -77,8 +70,48 @@ class TeamsHandler:
             return self._format_response(result_text)
 
         except Exception as e:
-            # Gère les erreurs de l'API et les exceptions inattendues
             print(f"Error fetching Teams messages: {e}")
+            return self._format_response(f"Graph API error: {e}")
+
+    def handleGetThreadMessages(self, parent_message_id: str):
+        """
+        Récupère et affiche tous les messages d'un thread.
+        """
+        if not self.use_live:
+            return self._format_response(
+                f"Teams (mock) → Pas de contenu, mode mock actif pour le thread {parent_message_id}.")
+
+        try:
+            self._check_config()
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages/{parent_message_id}/replies"
+            response_data = self.api.get(path)
+
+            if response_data is None:
+                return self._format_response(
+                    "L'API a renvoyé une réponse vide. Il n'y a peut-être aucune réponse dans ce thread.")
+
+            messages = response_data.get('value', [])
+            result_parts = [f"Nombre total de réponses trouvées dans le thread : {len(messages)}\n"]
+
+            for i, message in enumerate(messages, 1):
+                created_at = message.get('createdDateTime')
+                sender = message.get('from')
+                sender_name = 'Nom inconnu'
+                if sender and sender.get('user'):
+                    sender_name = sender['user'].get('displayName', 'Nom inconnu')
+                message_body = message.get('body', {}).get('content', 'Pas de contenu')
+
+                result_parts.append("--- Réponse {} ---".format(i))
+                result_parts.append("Envoyé par : {}".format(sender_name))
+                result_parts.append("Date : {}".format(created_at))
+                result_parts.append("Contenu : {}".format(message_body.strip()))
+                result_parts.append("\n" + "-" * 30 + "\n")
+
+            result_text = "\n".join(result_parts)
+            return self._format_response(result_text)
+
+        except Exception as e:
+            print(f"Error fetching Teams thread messages: {e}")
             return self._format_response(f"Graph API error: {e}")
 
     def handleSendChannelMessage(self, text: str):
