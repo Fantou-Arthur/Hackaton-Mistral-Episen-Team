@@ -4,3 +4,4 @@ python-dotenv
 google-analytics-data
 pydantic
 requests
+mistralai
