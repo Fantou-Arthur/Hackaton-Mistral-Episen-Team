@@ -56,6 +56,11 @@ class TeamsHandler:
 
             data = self.api.get(path, params=params)
 
+            # Ajout d'une vérification pour s'assurer que les données ne sont pas None
+            if data is None:
+                return self._format_response(
+                    "L'API a renvoyé une réponse vide. Il n'y a peut-être aucun message dans le canal.")
+
             values = data.get("value", [])
 
             # Filtre localement les messages par date de création
