@@ -2,7 +2,6 @@ import os
 import json
 from dotenv import load_dotenv
 from connectors import teams_connector
-import datetime
 from datetime import datetime, timedelta, timezone
 
 
@@ -49,22 +48,24 @@ class TeamsHandler:
 
             # Calcule le point de départ pour le filtre de temps
             start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-            start_time_iso = start_time.isoformat()
 
-            # Ajoute le filtre à l'URL de la requête API
-            # Note : certains points de terminaison ne supportent pas le filtre sur `createdDateTime`.
-            # S'ils le supportent, c'est l'approche la plus efficace.
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
             params = {
-                "$filter": f"createdDateTime ge {start_time_iso}",
-                "$top": "30"  # Limitez le nombre de messages pour éviter des charges trop importantes
+                "$top": "50"  # Récupère les 50 messages les plus récents
             }
 
             data = self.api.get(path, params=params)
 
             values = data.get("value", [])
-            total_messages = len(values)
-            mentions = sum(len(msg.get("mentions", [])) for msg in values if msg.get("mentions"))
+
+            # Filtre localement les messages par date de création
+            recent_messages = [
+                msg for msg in values
+                if datetime.fromisoformat(msg.get("createdDateTime").replace("Z", "+00:00")) >= start_time
+            ]
+
+            total_messages = len(recent_messages)
+            mentions = sum(len(msg.get("mentions", [])) for msg in recent_messages if msg.get("mentions"))
 
             result_text = f"Teams → {total_messages} messages dans les {hours} dernières heures, {mentions} mentions."
             return self._format_response(result_text)
