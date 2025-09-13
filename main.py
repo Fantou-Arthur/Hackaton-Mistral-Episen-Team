@@ -44,7 +44,7 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
 )
 async def trello_summary(project_name: str = Field(description="The name of the project the user want to summarize")) -> str:
     """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
-    boardId = MistralClient.getboardId("hackathon planning")
+    boardId = MistralClient.getboardId(project_name)
     if boardId is None:
         return "No project found with the given name."
     else:

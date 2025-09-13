@@ -14,18 +14,7 @@ class ToolsMethods:
             cards = self.trello.handleGetCardsForBoard(board_id)
 
             import json
-            # return {
-            #     'content': [
-            #         {
-            #             'type': 'text',
-            #             'text': json.dumps({
-            #                 'board': board,
-            #                 'lists': lists,
-            #                 'cards': cards
-            #             }, indent=2)
-            #         }
-            #     ]
-            # }
+
             return json.dumps({
                 'board': board,
                 'lists': lists,
