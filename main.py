@@ -43,6 +43,25 @@ async def teams_summary() -> str:
     """Résumé Teams (messages récents + mentions)."""
     return await teams_connector.unread_and_mentions()
 
+@mcp.tool()
+async def teams_send_message(text: str = Field(description="Contenu (HTML ou texte)")) -> str:
+    """Poster un message dans le canal Teams configuré."""
+    return await teams_connector.send_channel_message(text)
+
+@mcp.tool()
+async def teams_reply(parent_message_id: str = Field(description="ID du message parent"),
+                      text: str = Field(description="Contenu (HTML ou texte)")) -> str:
+    """Répondre à un fil dans le canal."""
+    return await teams_connector.reply_to_message(parent_message_id, text)
+
+
+@mcp.tool()
+async def teams_send_mention(user_id: str = Field(description="ID Graph de l'utilisateur mentionné"),
+                             display_name: str = Field(description="Nom à afficher"),
+                             text: str = Field(description="Texte additionnel")) -> str:
+    """Envoyer un message avec @mention d'un utilisateur."""
+    return await teams_connector.send_with_mention(user_id, display_name, text)
+
 
 @mcp.tool(
     title="Trello Summary",
