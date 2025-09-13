@@ -11,6 +11,29 @@ class TeamsConnector:
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
     """
 
+    
+
+    def _get_token():
+        """Récupère un access_token Graph via MSAL (application permission)."""
+        app = ConfidentialClientApplication(
+            CLIENT_ID,
+            authority=f"https://login.microsoftonline.com/{TENANT_ID}",
+            client_credential=CLIENT_SECRET,
+        )
+        result = app.acquire_token_silent(GRAPH_SCOPE, account=None)
+        if not result:
+            result = app.acquire_token_for_client(scopes=GRAPH_SCOPE)
+        if "access_token" not in result:
+            raise RuntimeError(f"Azure AD auth error: {result}")
+        return result["access_token"]
+
+
+    def _headers():
+        return {
+            "Authorization": f"Bearer {_get_token()}",
+            "Content-Type": "application/json"
+    }
+
     def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
@@ -96,3 +119,35 @@ class TeamsConnector:
         response.raise_for_status()
         return response.json() if response.content else None
 
+    async def find_team_by_name(name):
+        """Recherche une team par displayName."""
+        if not USE_LIVE:
+            return {"id": "team-mock", "displayName": name}
+        teams = await _paged_collect(f"{GRAPH_BASE}/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$top=50")
+        for t in teams:
+            if name.lower() in (t.get("displayName") or "").lower():
+                return {"id": t["id"], "displayName": t["displayName"]}
+        return None
+
+
+    async def find_channel_by_name(team_id, name):
+        """Recherche un canal par nom dans une team donnée."""
+        if not USE_LIVE:
+            return {"id": "channel-mock", "displayName": name}
+        chans = await _paged_collect(f"{GRAPH_BASE}/teams/{team_id}/channels")
+        for c in chans:
+            if name.lower() in (c.get("displayName") or "").lower():
+                return {"id": c["id"], "displayName": c["displayName"]}
+        return None
+
+
+    async def find_user_by_email(email):
+        """Recherche un utilisateur par email (UserPrincipalName)."""
+        if not USE_LIVE:
+            return {"id": "user-mock", "displayName": email}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.get(f"{GRAPH_BASE}/users/{email}", headers=_headers())
+            if r.status_code == 200:
+                u = r.json()
+                return {"id": u["id"], "displayName": u.get("displayName"), "mail": u.get("mail")}
+        return None

@@ -29,6 +29,29 @@ def echo(text: str = Field(description="The text to echo")) -> str:
     return text
 
 
+@mcp.tool()
+async def teams_find_team(name: str = Field(description="Nom (partiel) de l'équipe")) -> dict:
+    """Retourne l'ID et infos d'une team par son nom."""
+    res = await teams_connector.find_team_by_name(name)
+    return res or {"error": f"Aucune team trouvée pour {name}"}
+
+@mcp.tool()
+async def teams_find_channel(
+    team_id: str = Field(description="ID de la team"),
+    name: str = Field(description="Nom (partiel) du canal")
+) -> dict:
+    """Retourne l'ID et infos d'un canal par son nom."""
+    res = await teams_connector.find_channel_by_name(team_id, name)
+    return res or {"error": f"Aucun canal trouvé pour {name}"}
+
+@mcp.tool()
+async def teams_find_user(
+    email: str = Field(description="Email ou UserPrincipalName de l'utilisateur")
+) -> dict:
+    """Retourne l'ID Graph d'un utilisateur par son email."""
+    res = await teams_connector.find_user_by_email(email)
+    return res or {"error": f"Aucun utilisateur trouvé pour {email}"}
+
 
 
 @mcp.tool(
