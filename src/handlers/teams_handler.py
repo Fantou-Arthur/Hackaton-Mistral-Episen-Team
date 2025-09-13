@@ -54,6 +54,7 @@ class TeamsHandler:
 
             for i, message in enumerate(messages, 1):
                 created_at = message.get('createdDateTime')
+                message_id = message.get('id')  # Récupère l'ID du message
                 sender = message.get('from')
                 sender_name = 'Nom inconnu'
                 if sender and sender.get('user'):
@@ -61,6 +62,7 @@ class TeamsHandler:
                 message_body = message.get('body', {}).get('content', 'Pas de contenu')
 
                 result_parts.append("--- Message {} ---".format(i))
+                result_parts.append(f"ID du thread : {message_id}")  # Affiche l'ID du thread
                 result_parts.append("Envoyé par : {}".format(sender_name))
                 result_parts.append("Date : {}".format(created_at))
                 result_parts.append("Contenu : {}".format(message_body.strip()))
