@@ -1,6 +1,7 @@
 """
 MCP Server Template
 """
+import datetime
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
@@ -54,13 +55,13 @@ async def trello_summary(project_name: str = Field(description="The name of the 
     title="Trello Project Overdue Tasks",
     description="Get overdue tasks for a specific Trello project",
 )
-async def trello_project_overdue_tasks(project_name: str = Field(description="The name of the project to get overdue tasks for"), dueDate: str = Field(description="The date to check for overdue tasks")) -> str:
+async def trello_project_overdue_tasks(project_name: str = Field(description="The name of the project to get overdue tasks for"), dueDate: datetime = Field(description="The date to check for overdue tasks")) -> str:
     boardId = MistralClient.getboardId(project_name)
     if boardId is None:
         return "No project found with the given name."
     else:
         return ToolsMethods().getOverdueTaskWithMembers(boardId, dueDate)
-    
+
 @mcp.tool(
     title="Add Comment to Trello Task",
     description="Add a comment to a specific Trello Task",
