@@ -1,6 +1,11 @@
-from .connectors import ga4_connector
+import os
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from connectors import trello_connector, slack_connector
+from connectors import trello_connector, slack_connector, ga4_connector
+
+env_file = os.getenv("ENV_FILE", ".env.production")
+print(f"🔧 Loading env file: {env_file}")
+load_dotenv(env_file)
 
 mcp = FastMCP("ai-team-dashboard")
 
@@ -20,4 +25,4 @@ async def ga4_summary() -> str:
     return await ga4_connector.sessions_report()
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")  # stdio pour Claude / http si tu veux tester REST
+    mcp.run(transport="http")
