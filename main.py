@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from dotenv import load_dotenv
 from connectors import teams_connector
+from handlers.teams_handler import TeamsHandler
 
   
 
@@ -38,13 +39,25 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
     Greetings = "Hello dear user :"+User
     return Greetings
 
+
 @mcp.tool(
-    title="teams_summary",
-    description="Get the ping and the unread messages, you'll have to summarize that after receiving the info",
+    title="Teams Summary",
+    description="Get a summary of recent messages and mentions in the main Teams channel.",
 )
 async def teams_summary() -> str:
-    """Résumé Teams (messages récents + mentions)."""
-    return await teams_connector.unread_and_mentions()
+    """Teams Summary: Number of recent messages and mentions in a given channel."""
+    try:
+        handler = TeamsHandler()
+        response = handler.handleGetUnreadAndMentions()
+
+        if response and 'content' in response and response['content']:
+            return response['content'][0].get('text', "Error: The response format is incorrect.")
+        else:
+            return "Unable to retrieve the summary from Teams (empty response)."
+    except Exception as e:
+        print(f"An error occurred in teams_summary: {e}")
+        return f"Sorry, an error occurred while contacting Teams."
+
 
 @mcp.tool(
     title="Send_Message_Teams",
