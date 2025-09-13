@@ -67,7 +67,21 @@ class TeamsHandler:
             total_messages = len(recent_messages)
             mentions = sum(len(msg.get("mentions", [])) for msg in recent_messages if msg.get("mentions"))
 
-            result_text = f"Teams → {total_messages} messages dans les {hours} dernières heures, {mentions} mentions."
+            # Créer le résumé des messages pour inclure le contenu
+            summary_parts = [
+                f"Teams → {total_messages} messages dans les {hours} dernières heures, {mentions} mentions."
+            ]
+
+            if total_messages > 0:
+                summary_parts.append("\n\nContenu des messages récents :")
+                for i, msg in enumerate(recent_messages):
+                    sender = msg.get('from', {}).get('user', {}).get('displayName', 'Inconnu')
+                    content = msg.get('body', {}).get('content', 'Contenu non disponible').replace('<br>', ' ').replace(
+                        '\n', ' ')
+                    summary_parts.append(
+                        f" - Message {i + 1} de {sender} : {content[:100]}...")  # Limite à 100 caractères pour la lisibilité
+
+            result_text = "\n".join(summary_parts)
             return self._format_response(result_text)
         except Exception as e:
             print(f"Error fetching Teams messages: {e}")
