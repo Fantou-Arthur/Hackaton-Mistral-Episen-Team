@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from dotenv import load_dotenv
-from connectors import teams_connector
+from connectors.teams_connector import TeamsConnector
 from handlers.teams_handler import TeamsHandler
 
   
@@ -32,7 +32,7 @@ def echo(text: str = Field(description="The text to echo")) -> str:
 @mcp.tool()
 async def teams_find_team(name: str = Field(description="Nom (partiel) de l'équipe")) -> dict:
     """Retourne l'ID et infos d'une team par son nom."""
-    res = await teams_connector.find_team_by_name(name)
+    res = await TeamsConnector.find_team_by_name(name)
     return res or {"error": f"Aucune team trouvée pour {name}"}
 
 @mcp.tool()
@@ -41,7 +41,7 @@ async def teams_find_channel(
     name: str = Field(description="Nom (partiel) du canal")
 ) -> dict:
     """Retourne l'ID et infos d'un canal par son nom."""
-    res = await teams_connector.find_channel_by_name(team_id, name)
+    res = await TeamsConnector.find_channel_by_name(team_id, name)
     return res or {"error": f"Aucun canal trouvé pour {name}"}
 
 @mcp.tool()
@@ -49,7 +49,7 @@ async def teams_find_user(
     email: str = Field(description="Email ou UserPrincipalName de l'utilisateur")
 ) -> dict:
     """Retourne l'ID Graph d'un utilisateur par son email."""
-    res = await teams_connector.find_user_by_email(email)
+    res = await TeamsConnector.find_user_by_email(email)
     return res or {"error": f"Aucun utilisateur trouvé pour {email}"}
 
 
@@ -88,7 +88,7 @@ async def teams_summary() -> str:
 )
 async def teams_send_message(text: str = Field(description="Contenu (HTML ou texte)")) -> str:
     """Poster un message dans le canal Teams configuré."""
-    return await teams_connector.send_channel_message(text)
+    return await TeamsConnector.send_channel_message(text)
 
 @mcp.tool(
     title="Reply_Message_Teams",
@@ -97,7 +97,7 @@ async def teams_send_message(text: str = Field(description="Contenu (HTML ou tex
 async def teams_reply(parent_message_id: str = Field(description="ID du message parent"),
                       text: str = Field(description="Contenu (HTML ou texte)")) -> str:
     """Répondre à un fil dans le canal."""
-    return await teams_connector.reply_to_message(parent_message_id, text)
+    return await TeamsConnector.reply_to_message(parent_message_id, text)
 
 
 @mcp.tool(
@@ -108,7 +108,7 @@ async def teams_send_mention(user_id: str = Field(description="ID Graph de l'uti
                              display_name: str = Field(description="Nom à afficher"),
                              text: str = Field(description="Texte additionnel")) -> str:
     """Envoyer un message avec @mention d'un utilisateur."""
-    return await teams_connector.send_with_mention(user_id, display_name, text)
+    return await TeamsConnector.send_with_mention(user_id, display_name, text)
 
 
 @mcp.tool(
