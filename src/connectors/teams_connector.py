@@ -1,5 +1,4 @@
 # Teams API Wrapper using Microsoft Graph
-
 import os
 import requests
 from msal import ConfidentialClientApplication
@@ -11,16 +10,16 @@ class TeamsConnector:
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
     """
 
-    def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
+    def __init__(self, tenant_id=None, client_id=None, client_secret=None, base_url="https://graph.microsoft.com/v1.0/"):
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
         """
         # Note: Il est recommandé de charger les variables d'environnement
         # (ex: avec `from dotenv import load_dotenv; load_dotenv()`)
         # avant d'instancier ce connecteur.
-        self.tenant_id = os.getenv("AZURE_TENANT_ID")
-        self.client_id = os.getenv("AZURE_CLIENT_ID")
-        self.client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID")
+        self.client_id = client_id or os.getenv("AZURE_CLIENT_ID")
+        self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET")
         self.base_url = base_url
         self.scope = ["https://graph.microsoft.com/.default"]
 
@@ -95,4 +94,5 @@ class TeamsConnector:
         response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
         response.raise_for_status()
         return response.json() if response.content else None
+
 
