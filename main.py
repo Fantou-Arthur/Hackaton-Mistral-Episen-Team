@@ -144,7 +144,8 @@ async def teams_list_users(
     Renvoie un objet {count, users}.
     """
     try:
-        users = await TeamsConnector.list_all_users(
+        connector = TeamsConnector() 
+        users = await connector.list_all_users(
             select=select, filter_expr=filter_expr, page_size=page_size
         )
         return {"count": len(users), "users": users}
