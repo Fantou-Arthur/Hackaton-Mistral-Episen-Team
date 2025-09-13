@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from connectors import trello_connector, slack_connector, ga4_connector
+from pydantic import Field
 
 env_file = os.getenv("ENV_FILE", ".env.production")
 print(f"🔧 Loading env file: {env_file}")
