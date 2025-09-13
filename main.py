@@ -70,9 +70,6 @@ async def add_comment_to_trello_task(card_id: str = Field(description="The ID of
     return ToolsMethods().addCommentToCard(card_id, comment_text)
 
 
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
-
 @mcp.tool(
     title="Trello Due date from imcompleteTask",
     description="Tell the Due date from imcompleteTask",
@@ -83,3 +80,6 @@ async def trello_Due_date_from_imcompleteTask(project_name: str = Field(descript
         return ToolsMethods().GetDueDatesfromincompleteTask(boardId)
     except Exception as e:
         return "An error occurred while trying to fetch Trello data. The Trello API might be unavailable."
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
