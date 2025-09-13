@@ -87,6 +87,25 @@ async def teams_read_thread(parent_message_id: str) -> str:
 
 
 @mcp.tool(
+    title="Teams Reply to Thread",
+    description="Replies to a specific message thread with new text.",
+)
+async def teams_reply_to_thread(parent_message_id: str, text: str) -> str:
+    """Replies to a specific message thread."""
+    try:
+        handler = TeamsHandler()
+        response = handler.handleReplyToMessage(parent_message_id, text)
+
+        if response and 'content' in response and isinstance(response['content'], list) and len(response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
+        else:
+            return "Impossible de répondre au thread de Teams (réponse vide)."
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la réponse au thread : {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
+
+
+@mcp.tool(
     title="Send_Message_Teams",
     description="Send the input message to a designated channel or a user",
 )
