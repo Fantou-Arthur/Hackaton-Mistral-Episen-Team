@@ -33,7 +33,7 @@ async def unread_and_mentions() -> str:
         return "Teams (mock) → 42 messages récents, 5 mentions (@)."
 
     if not all([TENANT_ID, CLIENT_ID, CLIENT_SECRET, TEAM_ID, CHANNEL_ID]):
-        return "⚠️ Config manquante (tenant/client/secret/team/channel)."
+        return " Config manquante (tenant/client/secret/team/channel)."
 
     token = _get_token()
     headers = {"Authorization": f"Bearer {token}"}
@@ -43,7 +43,7 @@ async def unread_and_mentions() -> str:
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.get(url, headers=headers, params=params)
         if r.status_code != 200:
-            return f"❌ Graph API error {r.status_code}: {r.text}"
+            return f" Graph API error {r.status_code}: {r.text}"
         data = r.json()
 
     values = data.get("value", [])
@@ -58,4 +58,4 @@ async def unread_and_mentions() -> str:
             if "<at" in body:
                 mentions += body.count("<at")
 
-    return f"✅ Teams → {total} messages récents, {mentions} mentions."
+    return f"Teams → {total} messages récents, {mentions} mentions."

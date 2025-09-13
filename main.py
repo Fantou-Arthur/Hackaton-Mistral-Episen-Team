@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 from connectors import teams_connector
 
 
-mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
+PORT = int(os.getenv("PORT", "3000"))
+
+mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=PORT, stateless_http=True, debug=True)
+
+
 
 env_file = os.getenv("ENV_FILE", ".env.production")
 
