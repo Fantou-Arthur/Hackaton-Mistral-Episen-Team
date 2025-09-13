@@ -49,6 +49,17 @@ async def trello_summary(project_name: str = Field(description="The name of the 
         return "No project found with the given name."
     else:
         return ToolsMethods().boardDataForSummary(boardId)
+    
+@mcp.tool(
+    title="Trello Project Overdue Tasks",
+    description="Get overdue tasks for a specific Trello project",
+)
+async def trello_project_overdue_tasks(project_name: str = Field(description="The name of the project to get overdue tasks for"), dueDate: str = Field(description="The date to check for overdue tasks")) -> str:
+    boardId = MistralClient.getboardId(project_name)
+    if boardId is None:
+        return "No project found with the given name."
+    else:
+        return ToolsMethods().getOverdueTaskWithMembers(boardId, dueDate)
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
