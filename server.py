@@ -1,5 +1,6 @@
+from .connectors import ga4_connector
 from mcp.server.fastmcp import FastMCP
-from connectors import trello_connector, slack_connector, ga4_connector
+from connectors import trello_connector, slack_connector
 
 mcp = FastMCP("ai-team-dashboard")
 
