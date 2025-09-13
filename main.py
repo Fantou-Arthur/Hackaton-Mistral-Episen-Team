@@ -21,7 +21,7 @@ def echo(text: str = Field(description="The text to echo")) -> str:
     title="Great User",
     description="Great the user",
 )
-def echo(User: str = Field(description="The text to echo")) -> str:
+def Greet(User: str = Field(description="The User to greet")) -> str:
     Greetings = "Hello dear user :"+User
     return Greetings
 
