@@ -1,88 +1,145 @@
-
 import os
+import json
 from dotenv import load_dotenv
-from connectors import trello_connector 
+from connectors import teams_connector
+from datetime import datetime, timedelta, timezone
 
-class TrelloHandler:
+
+class TeamsHandler:
+    """
+    Gère la logique métier pour les opérations Teams en utilisant le TeamsConnector.
+    """
 
     def __init__(self):
+        """
+        Initialise le handler, charge les variables d'environnement et crée une instance du connecteur.
+        """
         load_dotenv()
-        self.api = trello_connector.TrelloConnector(
-            api_key=os.getenv("TRELLO_API_KEY"), 
-            token=os.getenv("TRELLO_TOKEN")
+        self.api = teams_connector.TeamsConnector(
+            tenant_id=os.getenv("AZURE_TENANT_ID"),
+            client_id=os.getenv("AZURE_CLIENT_ID"),
+            client_secret=os.getenv("AZURE_CLIENT_SECRET")
         )
+        self.team_id = os.getenv("TEAMS_TEAM_ID")
+        self.channel_id = os.getenv("TEAMS_CHANNEL_ID")
+        self.use_live = os.getenv("USE_LIVE", "false").lower() == "true"
 
-    def handleGetBoards(self):
+    def _check_config(self):
+        """Vérifie que la configuration nécessaire est présente."""
+        if not all([self.api.tenant_id, self.api.client_id, self.api.client_secret, self.team_id, self.channel_id]):
+            raise ValueError("Configuration manquante (tenant/client/secret/team/channel).")
+
+    def _format_response(self, text_content):
+        """Met en forme la réponse dans la structure attendue."""
+        return {'content': [{'type': 'text', 'text': text_content}]}
+
+    def handleGetChannelMessages(self):
+        """
+        Récupère les derniers messages et mentions dans un canal.
+        """
+        if not self.use_live:
+            return self._format_response("Teams (mock) → 42 messages récents, 5 mentions (@).")
+
         try:
-            boards = self.api.get("members/me/boards")
-            openBoards = [board for board in boards if not board.get('closed', False)]
-            
-            import json
-            return {
-                'content': [
-                    {
-                        'type': 'text',
-                        'text': json.dumps([{'id': b['id'], 'name': b['name'], 'url': b['url'], 'desc': b['desc'], 'memberships': b['memberships']} for b in openBoards], indent=2)
-                    }
-                ]
+            self._check_config()
+
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
+            params = {
+                # Aucun paramètre, la requête est la plus simple possible
             }
+
+            data = self.api.get(path, params=params)
+
+            # Vérification pour s'assurer que les données ne sont pas None
+            if not data or 'value' not in data:
+                return self._format_response(
+                    "L'API a renvoyé une réponse vide ou un format inattendu. Il n'y a peut-être aucun message dans le canal.")
+
+            values = data.get("value", [])
+
+            total_messages = len(values)
+            mentions = sum(len(msg.get("mentions", [])) for msg in values if msg.get("mentions"))
+
+            # Créer le résumé des messages pour inclure le contenu
+            summary_parts = [
+                f"Teams → {total_messages} messages récents, {mentions} mentions."
+            ]
+
+            if total_messages > 0:
+                summary_parts.append("\n\nContenu des messages récents :")
+                for i, msg in enumerate(values):
+                    sender = msg.get('from', {}).get('user', {}).get('displayName', 'Inconnu')
+                    content = msg.get('body', {}).get('content', 'Contenu non disponible').replace('<br>', ' ').replace(
+                        '\n', ' ')
+                    summary_parts.append(
+                        f" - Message {i + 1} de {sender} : {content[:100]}...")  # Limite à 100 caractères pour la lisibilité
+
+            result_text = "\n".join(summary_parts)
+            return self._format_response(result_text)
         except Exception as e:
-            print(f"Error fetching boards: {e}")
-            return None
-    
-    def handleGetList(self, board_id='68c54ba62ed16c399220c1bd'):
+            print(f"Error fetching Teams messages: {e}")
+            return self._format_response(f"Graph API error: {e}")
+
+    def handleSendChannelMessage(self, text: str):
+        """
+        Poste un message simple dans le canal configuré.
+        """
+        if not self.use_live:
+            return self._format_response(f"[MOCK] Message envoyé : {text}")
+
         try:
-            lists = self.api.get(f"boards/{board_id}/lists")
-            openLists = [lst for lst in lists if not lst.get('closed', False)]
-            
-            import json
-            return {
-                'content': [
-                    {
-                        'type': 'text',
-                        'text': json.dumps([{'id': l['id'], 'name': l['name']} for l in openLists], indent=2)
-                    }
-                ]
-            }
+            self._check_config()
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
+            payload = {"body": {"contentType": "html", "content": text}}
+            msg = self.api.post(path, data=payload)
+            result_text = f"Envoyé. messageId={msg.get('id')}"
+            return self._format_response(result_text)
         except Exception as e:
-            print(f"Error fetching lists: {e}")
-            return None
-        
-    def handleGetCards(self, board_id='68c54ba62ed16c399220c1bd'):
+            print(f"Error sending Teams message: {e}")
+            return self._format_response(f"Envoi échoué: {e}")
+
+    def handleReplyToMessage(self, parent_message_id: str, text: str):
+        """
+        Répond à un message spécifique dans un thread.
+        """
+        if not self.use_live:
+            return self._format_response(f"[MOCK] Réponse à {parent_message_id} : {text}")
+
         try:
-            cards = self.api.get(f"boards/{board_id}/cards")
-            import json
-            return {
-                'content': [
-                    {
-                        'type': 'text',
-                        'text': json.dumps([{'id': c['id'], 'name': c['name'], 'due': c['due'], 'idList': c['idList'], 'idBoard': c['idBoard']} for c in cards], indent=2)
-                    }
-                ]
-            }
+            self._check_config()
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages/{parent_message_id}/replies"
+            payload = {"body": {"contentType": "html", "content": text}}
+            msg = self.api.post(path, data=payload)
+            result_text = f"Réponse envoyée. replyId={msg.get('id')}"
+            return self._format_response(result_text)
         except Exception as e:
-            print(f"Error fetching cards: {e}")
-            return None
-    
-    def handleGetBoardDetails(self, board_id='68c54ba62ed16c399220c1bd'):
+            print(f"Error replying to Teams message: {e}")
+            return self._format_response(f"Réponse échouée: {e}")
+
+    def handleSendWithMention(self, user_id: str, display_name: str, text: str):
+        """
+        Poste un message avec une mention d'un utilisateur.
+        """
+        if not self.use_live:
+            return self._format_response(f"[MOCK] @{display_name} : {text}")
+
         try:
-            board = self.api.get(f"boards/{board_id}")
-            lists = self.api.get(f"boards/{board_id}/lists")
-            cards = self.api.get(f"boards/{board_id}/cards")
-            
-            import json
-            return {
-                'content': [
-                    {
-                        'type': 'text',
-                        'text': json.dumps({
-                            'board': board,
-                            'lists': lists,
-                            'cards': cards
-                        }, indent=2)
-                    }
-                ]
+            self._check_config()
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
+            payload = {
+                "body": {
+                    "contentType": "html",
+                    "content": f"Bonjour <at id='0'>{display_name}</at> — {text}"
+                },
+                "mentions": [{
+                    "id": 0,
+                    "mentionText": display_name,
+                    "mentioned": {"user": {"id": user_id}}
+                }]
             }
+            msg = self.api.post(path, data=payload)
+            result_text = f"Envoyé avec mention. messageId={msg.get('id')}"
+            return self._format_response(result_text)
         except Exception as e:
-            print(f"Error fetching board details: {e}")
-            return None
+            print(f"Error sending mention: {e}")
+            return self._format_response(f"Mention échouée: {e}")
