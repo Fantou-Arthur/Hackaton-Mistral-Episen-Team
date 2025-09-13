@@ -2,6 +2,8 @@ import os
 import json
 from dotenv import load_dotenv
 from connectors import teams_connector
+import datetime
+from datetime import datetime, timedelta, timezone
 
 
 class TeamsHandler:
@@ -32,24 +34,39 @@ class TeamsHandler:
         """Met en forme la réponse dans la structure attendue."""
         return {'content': [{'type': 'text', 'text': text_content}]}
 
-    def handleGetUnreadAndMentions(self):
+    def handleGetChannelMessages(self, hours: int = 24):
         """
-        Récupère un résumé des messages récents et des mentions dans un canal.
+        Récupère un résumé des messages et des mentions dans un canal pour les X dernières heures.
+
+        Args:
+            hours (int): Le nombre d'heures à rechercher (par défaut à 24).
         """
         if not self.use_live:
             return self._format_response("Teams (mock) → 42 messages récents, 5 mentions (@).")
 
         try:
             self._check_config()
+
+            # Calcule le point de départ pour le filtre de temps
+            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            start_time_iso = start_time.isoformat()
+
+            # Ajoute le filtre à l'URL de la requête API
+            # Note : certains points de terminaison ne supportent pas le filtre sur `createdDateTime`.
+            # S'ils le supportent, c'est l'approche la plus efficace.
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
-            params = {"$top": "30"}
+            params = {
+                "$filter": f"createdDateTime ge {start_time_iso}",
+                "$top": "30"  # Limitez le nombre de messages pour éviter des charges trop importantes
+            }
+
             data = self.api.get(path, params=params)
 
             values = data.get("value", [])
-            total = len(values)
+            total_messages = len(values)
             mentions = sum(len(msg.get("mentions", [])) for msg in values if msg.get("mentions"))
 
-            result_text = f"Teams → {total} messages récents, {mentions} mentions."
+            result_text = f"Teams → {total_messages} messages dans les {hours} dernières heures, {mentions} mentions."
             return self._format_response(result_text)
         except Exception as e:
             print(f"Error fetching Teams messages: {e}")

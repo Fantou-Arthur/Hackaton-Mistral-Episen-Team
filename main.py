@@ -48,7 +48,7 @@ async def teams_summary() -> str:
     """Teams Summary: Number of recent messages and mentions in a given channel."""
     try:
         handler = TeamsHandler()
-        response = handler.handleGetUnreadAndMentions()
+        response = handler.handleGetChannelMessages()
 
         if response and 'content' in response and response['content']:
             return response['content'][0].get('text', "Error: The response format is incorrect.")
@@ -56,7 +56,7 @@ async def teams_summary() -> str:
             return "Unable to retrieve the summary from Teams (empty response)."
     except Exception as e:
         print(f"An error occurred in teams_summary: {e}")
-        return f"Sorry, an error occurred while contacting Teams."
+        return f"Sorry, an error occurred while contacting Teams: {e}."
 
 
 @mcp.tool(
