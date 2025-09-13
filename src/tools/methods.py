@@ -34,12 +34,10 @@ class ToolsMethods:
                     if member_info:
                         member_details.append(member_info)
                 card['memberDetails'] = member_details
-            overdue_cards = {
-                'board_id': board_id,
-                'overdue_cards': cards
-            }
-            return json.dumps(overdue_cards, indent=2)
-
+            return json.dumps({
+                'board_id': json.dumps(board_id, indent=2),
+                'overdue_cards': json.dumps(cards, indent=2)
+            }, indent=2)
         except Exception as e:
             print(f"Error fetching overdue tasks: {e}")
             return None
