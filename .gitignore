@@ -11,3 +11,5 @@ dist/
 lib/
 lib64/
 var/
+
+.vscode/*
