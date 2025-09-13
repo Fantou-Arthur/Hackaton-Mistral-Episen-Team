@@ -100,3 +100,14 @@ class TrelloHandler:
         except Exception as e:
             print(f"Error adding comment: {e}")
             return None
+
+    def handleboardGetdate(self, board_id):
+        try:
+            cards = self.api.get(f"boards/{board_id}/cards", params={"fields": "name,due,closed,dueComplete"})
+            opencard = [c for c in cards if not c.get('closed', False)]
+
+            return [{"id": c["id"], "name": c["name"], "due": c.get("due"), "dueComplete": c.get("dueComplete")} for c
+                    in opencard]
+        except Exception as e:
+            print(f"Error fetching lists: {e}")
+            return None

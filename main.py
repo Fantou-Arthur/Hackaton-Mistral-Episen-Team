@@ -72,3 +72,14 @@ async def add_comment_to_trello_task(card_id: str = Field(description="The ID of
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
+
+@mcp.tool(
+    title="Trello Due date from imcompleteTask",
+    description="Tell the Due date from imcompleteTask",
+)
+async def trello_Due_date_from_imcompleteTask(project_name: str = Field(description="Get the due dates for all incomplete tasks from a Trello board")) -> str:
+    try:
+        boardId = MistralClient.getboardId(project_name)
+        return ToolsMethods().GetDueDatesfromincompleteTask(boardId)
+    except Exception as e:
+        return "An error occurred while trying to fetch Trello data. The Trello API might be unavailable."

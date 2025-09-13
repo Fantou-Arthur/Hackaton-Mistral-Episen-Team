@@ -49,3 +49,16 @@ class ToolsMethods:
         except Exception as e:
             print(f"Error adding comment to card: {e}")
             return None
+
+    def GetDueDatesfromincompleteTask(self, board_id):
+        try:
+            dates = self.trello.handleboardGetdate(board_id)
+            event_details = []
+            for date in dates:
+                if date["dueComplete"] == False:
+                    event_details.append(date)
+            return json.dumps(event_details, indent=2)
+
+        except Exception as e:
+            print(f"Error fetching board details: {e}")
+            return None
