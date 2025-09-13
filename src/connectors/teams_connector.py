@@ -29,7 +29,7 @@ def _get_token() -> str:
 
 async def unread_and_mentions() -> str:
     """Résumé Teams : nombre de messages récents et mentions sur un canal donné."""
-    if not USE_LIVE:
+    if not True:
         return "Teams (mock) → 42 messages récents, 5 mentions (@)."
 
     if not all([TENANT_ID, CLIENT_ID, CLIENT_SECRET, TEAM_ID, CHANNEL_ID]):
