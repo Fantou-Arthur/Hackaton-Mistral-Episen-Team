@@ -3,7 +3,12 @@
 import os
 import requests
 from msal import ConfidentialClientApplication
+from urllib.parse import quote
+import httpx
 
+# Constantes Graph
+GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+USE_LIVE = os.getenv("USE_LIVE", "False").lower() == "true"
 
 class TeamsConnector:
     """
@@ -28,11 +33,6 @@ class TeamsConnector:
         return result["access_token"]
 
 
-    def _headers():
-        return {
-            "Authorization": f"Bearer {_get_token()}",
-            "Content-Type": "application/json"
-    }
 
     def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
         """
@@ -151,3 +151,51 @@ class TeamsConnector:
                 u = r.json()
                 return {"id": u["id"], "displayName": u.get("displayName"), "mail": u.get("mail")}
         return None
+    
+
+
+
+    async def list_all_users(self, select: str | None = "id,displayName,mail,userPrincipalName",
+                             filter_expr: str | None = None,
+                             page_size: int = 50) -> list[dict]:
+        """
+        Récupère tous les utilisateurs AAD via /users avec pagination.
+        - select: champs à retourner (CSV), ex: "id,displayName,mail,userPrincipalName"
+        - filter_expr: filtre OData optionnel, ex: "accountEnabled eq true"
+        - page_size: taille de page ($top), max conseillé 999 au plus, 50 par défaut
+        """
+        if not True:
+            # Mode mock pour tests hors-ligne
+            return [
+                {"id": "user-mock-1", "displayName": "Alice Mock", "mail": "alice@example.com", "userPrincipalName": "alice@example.com"},
+                {"id": "user-mock-2", "displayName": "Bob Mock", "mail": "bob@example.com", "userPrincipalName": "bob@example.com"},
+            ]
+
+        # Construire l’URL de départ
+        params = [f"$top={page_size}"]
+        if select:
+            params.append(f"$select={select}")
+        if filter_expr:
+            # Encoder le filtre OData proprement
+            params.append(f"$filter={quote(filter_expr, safe=' ()\"\'=<>!andornulltruefalse.,')}")
+        url = f"{GRAPH_BASE}/users?{'&'.join(params)}"
+
+        items: list[dict] = []
+        headers = self._get_auth_headers()
+        # Si tu utilises $count/$filter avancé, parfois ConsistencyLevel:eventual est requis
+        # headers["ConsistencyLevel"] = "eventual"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while url:
+                r = await client.get(url, headers=headers)
+                # Gestion simple des erreurs
+                if r.status_code in (429, 503):
+                    # Backoff très simple (hackathon-friendly)
+                    await asyncio.sleep(1.0)
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                items.extend(data.get("value", []))
+                url = data.get("@odata.nextLink")
+
+        return items

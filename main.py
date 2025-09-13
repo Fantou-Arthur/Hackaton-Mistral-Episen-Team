@@ -121,5 +121,36 @@ async def trello_summary() -> str:
     pass
 
 
+@mcp.tool(
+    title="List All Users",
+    description="Retourne tous les utilisateurs Azure AD via Microsoft Graph /users (avec pagination).",
+)
+async def teams_list_users(
+    select: str = Field(
+        default="id,displayName,mail,userPrincipalName",
+        description="Champs à retourner (CSV) pour $select."
+    ),
+    filter_expr: str | None = Field(
+        default=None,
+        description="Filtre OData optionnel, ex: \"accountEnabled eq true\""
+    ),
+    page_size: int = Field(
+        default=50,
+        description="Taille de page ($top)."
+    )
+) -> dict:
+    """
+    Expose la liste des utilisateurs au travers de l'outil MCP.
+    Renvoie un objet {count, users}.
+    """
+    try:
+        users = await TeamsConnector.list_all_users(
+            select=select, filter_expr=filter_expr, page_size=page_size
+        )
+        return {"count": len(users), "users": users}
+    except Exception as e:
+        return {"error": f"teams_list_users failed: {e!s}"}
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
