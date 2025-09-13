@@ -1,4 +1,5 @@
 # Teams API Wrapper using Microsoft Graph
+#able to read a team and a specified thread
 
 import os
 import requests
