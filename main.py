@@ -47,16 +47,23 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
 async def teams_summary() -> str:
     """Teams Summary: Number of recent messages and mentions in a given channel."""
     try:
+        # Initialise le handler qui gère la logique de communication avec Teams
         handler = TeamsHandler()
+
+        # Appelle la méthode pour obtenir les messages du canal
+        # La méthode handleGetChannelMessages gère l'authentification et la requête
         response = handler.handleGetChannelMessages()
 
-        if response and 'content' in response and response['content']:
-            return response['content'][0].get('text', "Error: The response format is incorrect.")
+        # Vérifie si la réponse a le format attendu et extrait le contenu
+        if response and 'content' in response and isinstance(response['content'], list) and len(
+                response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
         else:
-            return "Unable to retrieve the summary from Teams (empty response)."
+            return "Impossible de récupérer le résumé de Teams (réponse vide)."
+
     except Exception as e:
-        print(f"An error occurred in teams_summary: {e}")
-        return f"Sorry, an error occurred while contacting Teams: {e}."
+        print(f"Une erreur s'est produite dans teams_summary: {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams: {e}."
 
 
 @mcp.tool(

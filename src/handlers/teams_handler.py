@@ -35,60 +35,49 @@ class TeamsHandler:
 
     def handleGetChannelMessages(self, hours: int = 24):
         """
-        Récupère un résumé des messages et des mentions dans un canal pour les X dernières heures.
-
-        Args:
-            hours (int): Le nombre d'heures à rechercher (par défaut à 24).
+        Récupère et affiche tous les messages d'un canal, comme dans le script d'exemple.
         """
         if not self.use_live:
-            return self._format_response("Teams (mock) → 42 messages récents, 5 mentions (@).")
+            return self._format_response("Teams (mock) → Pas de contenu, mode mock actif.")
 
         try:
             self._check_config()
 
-            # Calcule le point de départ pour le filtre de temps
-            start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-
+            # URL de l'API Graph pour les messages du canal sans aucun filtre ni option
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
-            params = {
-                "$top": "50"  # Récupère les 50 messages les plus récents
-            }
 
-            data = self.api.get(path, params=params)
+            # Effectue la requête GET
+            response_data = self.api.get(path)
 
-            # Ajout d'une vérification pour s'assurer que les données ne sont pas None
-            if data is None:
-                return self._format_response(
-                    "L'API a renvoyé une réponse vide. Il n'y a peut-être aucun message dans le canal.")
+            # Vérifie si la réponse n'est pas None avant d'essayer d'y accéder
+            if response_data is None:
+                return self._format_response("L'API a renvoyé une réponse vide. Il n'y a peut-être aucun message dans le canal.")
 
-            values = data.get("value", [])
+            # Récupère les messages de manière sécurisée
+            messages = response_data.get('value', [])
+            result_parts = [f"Nombre total de messages trouvés dans le canal : {len(messages)}\n"]
 
-            # Filtre localement les messages par date de création
-            recent_messages = [
-                msg for msg in values
-                if datetime.fromisoformat(msg.get("createdDateTime").replace("Z", "+00:00")) >= start_time
-            ]
+            for i, message in enumerate(messages, 1):
+                created_at = message.get('createdDateTime')
 
-            total_messages = len(recent_messages)
-            mentions = sum(len(msg.get("mentions", [])) for msg in recent_messages if msg.get("mentions"))
+                sender = message.get('from')
+                sender_name = 'Nom inconnu'
+                if sender and sender.get('user'):
+                    sender_name = sender['user'].get('displayName', 'Nom inconnu')
 
-            # Créer le résumé des messages pour inclure le contenu
-            summary_parts = [
-                f"Teams → {total_messages} messages dans les {hours} dernières heures, {mentions} mentions."
-            ]
+                message_body = message.get('body', {}).get('content', 'Pas de contenu')
 
-            if total_messages > 0:
-                summary_parts.append("\n\nContenu des messages récents :")
-                for i, msg in enumerate(recent_messages):
-                    sender = msg.get('from', {}).get('user', {}).get('displayName', 'Inconnu')
-                    content = msg.get('body', {}).get('content', 'Contenu non disponible').replace('<br>', ' ').replace(
-                        '\n', ' ')
-                    summary_parts.append(
-                        f" - Message {i + 1} de {sender} : {content[:100]}...")  # Limite à 100 caractères pour la lisibilité
+                result_parts.append("--- Message {} ---".format(i))
+                result_parts.append("Envoyé par : {}".format(sender_name))
+                result_parts.append("Date : {}".format(created_at))
+                result_parts.append("Contenu : {}".format(message_body.strip()))
+                result_parts.append("\n" + "-" * 30 + "\n")
 
-            result_text = "\n".join(summary_parts)
+            result_text = "\n".join(result_parts)
             return self._format_response(result_text)
+
         except Exception as e:
+            # Gère les erreurs de l'API et les exceptions inattendues
             print(f"Error fetching Teams messages: {e}")
             return self._format_response(f"Graph API error: {e}")
 
