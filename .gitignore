@@ -13,3 +13,5 @@ lib64/
 var/
 
 .vscode/*
+
+test.py
