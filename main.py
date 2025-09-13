@@ -26,6 +26,23 @@ def Greet(User: str = Field(description="The User to greet")) -> str:
     return Greetings
 
 
+@mcp.tool()
+async def trello_summary() -> str:
+    """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
+    return await trello_connector.sprint_summary()
+
+@mcp.tool()
+async def slack_summary() -> str:
+    """Résumé des unread messages et mentions Slack."""
+    return await slack_connector.unread_mentions()
+
+@mcp.tool()
+async def ga4_summary() -> str:
+    """Résumé des sessions utilisateurs sur les 7 derniers jours (GA4)."""
+    return await ga4_connector.sessions_report()
+
+
+
 @mcp.resource(
     uri="greeting://{name}",
     description="Get a personalized greeting",
