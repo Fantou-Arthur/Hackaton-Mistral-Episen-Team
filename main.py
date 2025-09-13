@@ -114,16 +114,6 @@ async def teams_send_message(text: str = Field(description="Contenu (HTML ou tex
     return await teams_connector.send_channel_message(text)
 
 @mcp.tool(
-    title="Reply_Message_Teams",
-    description="Answer in a thread on teams",
-)
-async def teams_reply(parent_message_id: str = Field(description="ID du message parent"),
-                      text: str = Field(description="Contenu (HTML ou texte)")) -> str:
-    """Répondre à un fil dans le canal."""
-    return await teams_connector.reply_to_message(parent_message_id, text)
-
-
-@mcp.tool(
     title="Mention_People_Teams",
     description="Send the input message to a designated channel or a user and ping the user",
 )
