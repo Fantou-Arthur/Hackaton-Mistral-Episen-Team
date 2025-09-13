@@ -13,7 +13,5 @@ dependencies = [
     "python-dotenv",
     "msal",
     "python-dotenv",
-    "httpx"
-
-
+    "httpx",
 ]
