@@ -17,6 +17,14 @@ mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=Tr
 def echo(text: str = Field(description="The text to echo")) -> str:
     return text
 
+@mcp.tool(
+    title="Great User",
+    description="Great the user",
+)
+def Greet(User: str = Field(description="The User to greet")) -> str:
+    Greetings = "Hello dear user :"+User
+    return Greetings
+
 
 @mcp.resource(
     uri="greeting://{name}",
