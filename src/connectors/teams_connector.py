@@ -1,4 +1,5 @@
 # Teams API Wrapper using Microsoft Graph
+
 import os
 import requests
 from msal import ConfidentialClientApplication
@@ -94,5 +95,3 @@ class TeamsConnector:
         response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
         response.raise_for_status()
         return response.json() if response.content else None
-
-
