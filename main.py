@@ -195,6 +195,5 @@ async def teams_get_private_messages(chat_id: str) -> str:
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
 
 
-
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
