@@ -1,4 +1,5 @@
 # Teams API Wrapper using Microsoft Graph
+#able to read a team and a specified thread
 
 import os
 import requests
@@ -94,16 +95,13 @@ class TeamsConnector:
 
 
 
-    def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
+    def __init__(self, tenant_id=None, client_id=None, client_secret=None, base_url="https://graph.microsoft.com/v1.0/"):
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
         """
-        # Note: Il est recommandé de charger les variables d'environnement
-        # (ex: avec `from dotenv import load_dotenv; load_dotenv()`)
-        # avant d'instancier ce connecteur.
-        self.tenant_id = os.getenv("AZURE_TENANT_ID")
-        self.client_id = os.getenv("AZURE_CLIENT_ID")
-        self.client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID")
+        self.client_id = client_id or os.getenv("AZURE_CLIENT_ID")
+        self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET")
         self.base_url = base_url
         self.scope = ["https://graph.microsoft.com/.default"]
 
@@ -161,6 +159,9 @@ class TeamsConnector:
         headers = self._get_auth_headers()
         # Si tu utilises $count/$filter avancé, parfois ConsistencyLevel:eventual est requis
         # headers["ConsistencyLevel"] = "eventual"
+        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             while url:
@@ -178,3 +179,20 @@ class TeamsConnector:
         return items
 
     
+    def put(self, path, data=None):
+        """
+        Effectue une requête PUT vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def delete(self, path, params=None):
+        """
+        Effectue une requête DELETE vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None

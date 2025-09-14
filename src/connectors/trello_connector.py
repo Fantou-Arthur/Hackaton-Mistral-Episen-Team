@@ -1,63 +1,96 @@
-# Trello API Wrapper
+# Teams API Wrapper using Microsoft Graph
 
+import os
 import requests
-
-def _attendees_payload(emails: list[str]) -> list[dict]:
-    return [
-        {
-            "emailAddress": {"address": e.strip()},
-            "type": "required"
-        } for e in emails if e and e.strip()
-    ]
+from msal import ConfidentialClientApplication
+import json
 
 
-class TrelloConnector:
-    def __init__(self, api_key, token, base_url="https://api.trello.com/1/"):
-        self.api_key = api_key
-        self.token = token
+class TeamsConnector:
+    """
+    Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
+    Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
+    """
+
+    def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
+        """
+        Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
+        """
+        self.tenant_id = os.getenv("AZURE_TENANT_ID")
+        self.client_id = os.getenv("AZURE_CLIENT_ID")
+        self.client_secret = os.getenv("AZURE_CLIENT_SECRET")
         self.base_url = base_url
+        self.scope = ["https://graph.microsoft.com/.default"]
 
-    def get(self,path, params=None):
-        if params is None:
-            params = {}
-        params.update({
-            'key': self.api_key,
-            'token': self.token
-        })
-        response = requests.get(f"{self.base_url}{path}", params=params)
-        response.raise_for_status()
-        return response.json()
+        if not all([self.tenant_id, self.client_id, self.client_secret]):
+            raise ValueError("Configuration Azure manquante: AZURE_TENANT_ID, AZURE_CLIENT_ID, ou AZURE_CLIENT_SECRET.")
 
-    def post(self,path, data=None):
-        if data is None:
-            data = {}
-        data.update({
-            'key': self.api_key,
-            'token': self.token
-        })
-        response = requests.post(f"{self.base_url}{path}", data=data)
+        # Initialise l'application MSAL pour l'authentification
+        self.app = ConfidentialClientApplication(
+            self.client_id,
+            authority=f"https://login.microsoftonline.com/{self.tenant_id}",
+            client_credential=self.client_secret,
+        )
+
+    def _get_token(self) -> str:
+        """
+        Récupère un jeton d'accès pour l'API Graph.
+        Tente d'abord de le récupérer depuis le cache, sinon en fait la demande.
+        """
+        result = self.app.acquire_token_silent(self.scope, account=None)
+        if not result:
+            result = self.app.acquire_token_for_client(scopes=self.scope)
+
+        if "access_token" not in result:
+            raise RuntimeError(f"Azure AD auth error: {result}")
+
+        return result["access_token"]
+
+    def _get_auth_headers(self) -> dict:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    def get(self, path, params=None):
+        """
+        Effectue une requête GET vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
         response.raise_for_status()
-        return response.json()
-    
-    def put(self,path, data=None):
-        if data is None:
-            data = {}
-        data.update({
-            'key': self.api_key,
-            'token': self.token
-        })
-        response = requests.put(f"{self.base_url}{path}", data=data)
+        # Si la réponse est 204 (No Content), requests.json() lèvera une erreur.
+        # Nous gérons ce cas en retournant None si le contenu est vide.
+        return response.json() if response.content else None
+
+    def post(self, path, data=None):
+        """
+        Effectue une requête POST vers l'API Graph.
+        Le corps de la requête (data) est envoyé en JSON.
+        """
+        headers = self._get_auth_headers()
+        response = requests.post(f"{self.base_url}{path}", headers=headers, json=data)
         response.raise_for_status()
-        return response.json()
-    
-    def delete(self,path, params=None):
-        if params is None:
-            params = {}
-        params.update({
-            'key': self.api_key,
-            'token': self.token
-        })
-        response = requests.delete(f"{self.base_url}{path}", params=params)
+        return response.json() if response.content else None
+
+    def put(self, path, data=None):
+        """
+        Effectue une requête PUT vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
         response.raise_for_status()
-        return response.json()
-        
+        return response.json() if response.content else None
+
+    def delete(self, path, params=None):
+        """
+        Effectue une requête DELETE vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
