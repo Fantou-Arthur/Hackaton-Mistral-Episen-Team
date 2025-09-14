@@ -1,11 +1,12 @@
-# teams_connector.py - Merged Teams API Wrapper using Microsoft Graph
+# Teams API Wrapper using Microsoft Graph
+# Merged version supporting both sync and async operations, with additional methods for meetings and user listing
 
 import os
+import asyncio
 import httpx
 from msal import ConfidentialClientApplication
 from urllib.parse import quote
 from typing import Dict, Any, Optional, List
-import asyncio
 
 # Constantes Graph
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
@@ -23,6 +24,7 @@ class TeamsConnector:
     """
     Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
+    Supporte les opérations synchrones et asynchrones.
     """
 
     def __init__(self, tenant_id: Optional[str] = None, client_id: Optional[str] = None,
@@ -70,7 +72,50 @@ class TeamsConnector:
             "Content-Type": "application/json"
         }
 
-    async def get(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+    # Synchronous methods (using requests for compatibility)
+    def get(self, path: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête GET synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def post(self, path: str, data: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête POST synchrone vers l'API Graph.
+        Le corps de la requête (data) est envoyé en JSON.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.post(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def put(self, path: str, data: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête PUT synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def delete(self, path: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête DELETE synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    # Asynchronous methods (using httpx)
+    async def aget(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Effectue une requête GET asynchrone vers l'API Graph.
         """
@@ -80,7 +125,7 @@ class TeamsConnector:
             response.raise_for_status()
             return response.json() if response.content else {}
 
-    async def post(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    async def apost(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Effectue une requête POST asynchrone vers l'API Graph.
         """
@@ -90,7 +135,7 @@ class TeamsConnector:
             response.raise_for_status()
             return response.json() if response.content else {}
 
-    async def put(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    async def aput(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Effectue une requête PUT asynchrone vers l'API Graph.
         """
@@ -100,7 +145,7 @@ class TeamsConnector:
             response.raise_for_status()
             return response.json() if response.content else {}
 
-    async def delete(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+    async def adelete(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Effectue une requête DELETE asynchrone vers l'API Graph.
         """
@@ -109,73 +154,6 @@ class TeamsConnector:
             response = await client.delete(f"{self.base_url}{path}", headers=headers, params=params)
             response.raise_for_status()
             return response.json() if response.content else {}
-
-    async def send_channel_message(self, text: str) -> str:
-        """
-        Poste un message simple dans le canal configuré.
-        """
-        team_id = os.getenv("TEAMS_TEAM_ID")
-        channel_id = os.getenv("TEAMS_CHANNEL_ID")
-        if not team_id or not channel_id:
-            raise ValueError("Configuration manquante: TEAMS_TEAM_ID ou TEAMS_CHANNEL_ID.")
-        path = f"teams/{team_id}/channels/{channel_id}/messages"
-        payload = {"body": {"contentType": "html", "content": text}}
-        data = await self.post(path, payload)
-        return f"Envoyé. messageId={data.get('id')}"
-
-    async def reply_to_message(self, parent_message_id: str, text: str) -> str:
-        """
-        Répond à un message spécifique dans un thread.
-        """
-        team_id = os.getenv("TEAMS_TEAM_ID")
-        channel_id = os.getenv("TEAMS_CHANNEL_ID")
-        if not team_id or not channel_id:
-            raise ValueError("Configuration manquante: TEAMS_TEAM_ID ou TEAMS_CHANNEL_ID.")
-        path = f"teams/{team_id}/channels/{channel_id}/messages/{parent_message_id}/replies"
-        payload = {"body": {"contentType": "html", "content": text}}
-        data = await self.post(path, payload)
-        return f"Réponse envoyée. replyId={data.get('id')}"
-
-    async def send_with_mention(self, user_id: str, display_name: str, text: str) -> str:
-        """
-        Poste un message avec une mention d'un utilisateur.
-        """
-        team_id = os.getenv("TEAMS_TEAM_ID")
-        channel_id = os.getenv("TEAMS_CHANNEL_ID")
-        if not team_id or not channel_id:
-            raise ValueError("Configuration manquante: TEAMS_TEAM_ID ou TEAMS_CHANNEL_ID.")
-        path = f"teams/{team_id}/channels/{channel_id}/messages"
-        payload = {
-            "body": {
-                "contentType": "html",
-                "content": f"<at id='0'>{display_name}</at> — {text}"
-            },
-            "mentions": [{
-                "id": 0,
-                "mentionText": display_name,
-                "mentioned": {"user": {"id": user_id}}
-            }]
-        }
-        data = await self.post(path, payload)
-        return f"Envoyé avec mention. messageId={data.get('id')}"
-
-    async def find_team_by_name(self, name: str) -> Optional[Dict]:
-        """
-        Recherche une team par nom partiel.
-        """
-        params = {"$filter": f"displayName contains '{name}'", "$select": "id,displayName,description"}
-        data = await self.get("groups", params)
-        values = data.get("value", [])
-        return values[0] if values else None
-
-    async def find_channel_by_name(self, team_id: str, name: str) -> Optional[Dict]:
-        """
-        Recherche un canal par nom partiel dans une team.
-        """
-        params = {"$filter": f"displayName contains '{name}'", "$select": "id,displayName"}
-        data = await self.get(f"teams/{team_id}/channels", params)
-        values = data.get("value", [])
-        return values[0] if values else None
 
     async def create_teams_meeting(
         self,
@@ -207,7 +185,7 @@ class TeamsConnector:
         if location_display_name:
             event["location"] = {"displayName": location_display_name}
 
-        url = f"{self.base_url}/users/{organizer_upn}/events"
+        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
         if send_invitations:
             url += "?sendInvitations=true"
 
@@ -234,6 +212,9 @@ class TeamsConnector:
                              page_size: int = 50) -> List[Dict]:
         """
         Récupère tous les utilisateurs AAD via /users avec pagination.
+        - select: champs à retourner (CSV), ex: "id,displayName,mail,userPrincipalName"
+        - filter_expr: filtre OData optionnel, ex: "accountEnabled eq true"
+        - page_size: taille de page ($top), max conseillé 999 au plus, 50 par défaut
         """
         if not USE_LIVE:
             # Mode mock pour tests hors-ligne
