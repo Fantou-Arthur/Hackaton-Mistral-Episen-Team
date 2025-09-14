@@ -21,15 +21,6 @@ AUTH_MODE = os.getenv("AUTH_MODE", "delegueted").lower()
 print(f" Loading env file: {env_file}")
 load_dotenv(env_file)
 
-
-@mcp.tool(
-    title="Echo Tool",
-    description="Echo the input text",
-)
-def echo(text: str = Field(description="The text to echo")) -> str:
-    return text
-
-
 @mcp.tool()
 async def teams_find_team(name: str = Field(description="Nom (partiel) de l'équipe")) -> dict:
     """Retourne l'ID et infos d'une team par son nom."""

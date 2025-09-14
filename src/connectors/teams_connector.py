@@ -2,17 +2,17 @@
 #able to read a team and a specified thread
 
 import os
-import requests
+import asyncio
+import httpx
 from msal import ConfidentialClientApplication
 from urllib.parse import quote
-import httpx
 from typing import Dict, Any, Optional, List
 
 # Constantes Graph
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 USE_LIVE = os.getenv("USE_LIVE", "False").lower() == "true"
 
-def _attendees_payload(emails: list[str]) -> list[dict]:
+def _attendees_payload(emails: List[str]) -> List[Dict]:
     return [
         {
             "emailAddress": {"address": e.strip()},
@@ -24,79 +24,11 @@ class TeamsConnector:
     """
     Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
+    Supporte les opérations synchrones et asynchrones.
     """
 
-    def _get_auth_headers(self) -> dict:
-        """
-        Construit les en-têtes d'autorisation avec le jeton Bearer.
-        """
-        token = self._get_token()
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-
-    async def create_teams_meeting(
-        self,
-        organizer_upn: str,
-        subject: str,
-        start_iso: str,
-        end_iso: str,
-        timezone: str = "Europe/Paris",
-        attendees: list[str] | None = None,
-        body_html: str | None = None,
-        location_display_name: str | None = None,
-        send_invitations: bool = True,   
-    ) -> dict:
-        event = {
-            "subject": subject,
-            "body": {"contentType": "HTML", "content": body_html or ""},
-            "start": {"dateTime": start_iso, "timeZone": timezone},
-            "end":   {"dateTime": end_iso,   "timeZone": timezone},
-            "isOnlineMeeting": True,
-            "onlineMeetingProvider": "teamsForBusiness",
-            "responseRequested": True,   
-            "importance": "high",   
-            "allowNewTimeProposals": True,   
-            "isReminderOn": True,   
-            "responseRequested": True,  
-        }
-        if attendees:
-            event["attendees"] = _attendees_payload(attendees)
-        if location_display_name:
-            event["location"] = {"displayName": location_display_name}
-
-        
-        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
-        if send_invitations:
-            url += "?sendInvitations=true"
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(url, headers=self._get_auth_headers(), json=event)
-            if r.status_code >= 400:
-                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
-            data = r.json()
-            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
-            return {
-                "event": {
-                    "id": data.get("id"),
-                    "subject": data.get("subject"),
-                    "start": data.get("start"),
-                    "end": data.get("end"),
-                    "location": data.get("location"),
-                },
-                "joinUrl": join_url,
-                "raw": data
-            }
-
-
-    
-
-
-
-
-
-    def __init__(self, tenant_id=None, client_id=None, client_secret=None, base_url="https://graph.microsoft.com/v1.0/"):
+    def __init__(self, tenant_id: Optional[str] = None, client_id: Optional[str] = None,
+                 client_secret: Optional[str] = None, base_url: str = "https://graph.microsoft.com/v1.0/"):
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
         """
@@ -130,6 +62,67 @@ class TeamsConnector:
 
         return result["access_token"]
 
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    async def create_teams_meeting(
+        self,
+        organizer_upn: str,
+        subject: str,
+        start_iso: str,
+        end_iso: str,
+        timezone: str = "Europe/Paris",
+        attendees: Optional[List[str]] = None,
+        body_html: Optional[str] = None,
+        location_display_name: Optional[str] = None,
+        send_invitations: bool = True,
+    ) -> Dict[str, Any]:
+        event = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html or ""},
+            "start": {"dateTime": start_iso, "timeZone": timezone},
+            "end":   {"dateTime": end_iso,   "timeZone": timezone},
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+            "responseRequested": True,
+            "importance": "high",
+            "allowNewTimeProposals": True,
+            "isReminderOn": True,
+            "responseRequested": True,
+        }
+        if attendees:
+            event["attendees"] = _attendees_payload(attendees)
+        if location_display_name:
+            event["location"] = {"displayName": location_display_name}
+
+        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
+        if send_invitations:
+            url += "?sendInvitations=true"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, headers=self._get_auth_headers(), json=event)
+            if r.status_code >= 400:
+                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
+            data = r.json()
+            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
+            return {
+                "event": {
+                    "id": data.get("id"),
+                    "subject": data.get("subject"),
+                    "start": data.get("start"),
+                    "end": data.get("end"),
+                    "location": data.get("location"),
+                },
+                "joinUrl": join_url,
+                "raw": data
+            }
 
     async def list_all_users(self, select: Optional[str] = "id,displayName,mail,userPrincipalName",
                              filter_expr: Optional[str] = None,
