@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from connectors import teams_connector
 from handlers.teams_handler import TeamsHandler
 
-  
+
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
@@ -135,43 +135,44 @@ async def trello_summary() -> str:
 
 
 @mcp.tool(
-    title="Teams Get Private Messages",
-    description="Gets messages from a private chat with a specific user.",
+    title="Teams List Team Members",
+    description="Lists all members of the main Teams team.",
 )
-async def teams_get_private_messages(user_name: str) -> str:
-    """Gets messages from a private chat with a specific user."""
+async def teams_list_members() -> str:
+    """Lists all team members."""
     try:
         handler = TeamsHandler()
-        response = handler.handleGetPrivateMessages(user_name)
-
-        if response and 'content' in response and isinstance(response['content'], list) and len(
-                response['content']) > 0:
-            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
-        else:
-            return "Impossible de lire les messages privés de Teams (réponse vide)."
+        return handler.handleListTeamMembers()
     except Exception as e:
-        print(f"Une erreur s'est produite lors de la lecture des messages privés : {e}")
-        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
-
+        print(f"Une erreur s'est produite dans teams_list_members: {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams: {e}."
 
 @mcp.tool(
-    title="Teams List Private Chats",
+    title="Teams List All Private Chats",
     description="Lists all your private chat IDs and the display names of the other participants.",
 )
 async def teams_list_private_chats() -> str:
     """Lists all your private chat IDs."""
     try:
         handler = TeamsHandler()
-        response = handler.handleListPrivateChats()
-
-        if response and 'content' in response and isinstance(response['content'], list) and len(
-                response['content']) > 0:
-            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
-        else:
-            return "Impossible de récupérer la liste des discussions privées de Teams (réponse vide)."
+        return handler.handleListPrivateChats()
     except Exception as e:
         print(f"Une erreur s'est produite lors de la liste des discussions privées : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
+
+@mcp.tool(
+    title="Teams Get Private Chat Messages",
+    description="Gets messages from a private chat given its chat ID.",
+)
+async def teams_get_private_messages(chat_id: str) -> str:
+    """Gets messages from a private chat with a specific chat ID."""
+    try:
+        handler = TeamsHandler()
+        return handler.handleGetPrivateMessages(chat_id)
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la lecture des messages privés : {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
+
 
 
 if __name__ == "__main__":
