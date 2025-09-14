@@ -1,61 +1,94 @@
+# Teams API Wrapper using Microsoft Graph
+#able to read a team and a specified thread
+
 import os
-import httpx
+import requests
 from msal import ConfidentialClientApplication
 
-USE_LIVE = os.getenv("USE_LIVE", "false").lower() == "true"
 
-TENANT_ID = os.getenv("AZURE_TENANT_ID")
-CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
-TEAM_ID = os.getenv("TEAMS_TEAM_ID")
-CHANNEL_ID = os.getenv("TEAMS_CHANNEL_ID")
+class TeamsConnector:
+    """
+    Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
+    Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
+    """
 
-GRAPH_SCOPE = ["https://graph.microsoft.com/.default"]
-GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+    def __init__(self, tenant_id=None, client_id=None, client_secret=None, base_url="https://graph.microsoft.com/v1.0/"):
+        """
+        Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
+        """
+        self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID")
+        self.client_id = client_id or os.getenv("AZURE_CLIENT_ID")
+        self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET")
+        self.base_url = base_url
+        self.scope = ["https://graph.microsoft.com/.default"]
 
-def _get_token() -> str:
-    """Récupère un token d’accès via MSAL."""
-    app = ConfidentialClientApplication(
-        CLIENT_ID,
-        authority=f"https://login.microsoftonline.com/{TENANT_ID}",
-        client_credential=CLIENT_SECRET,
-    )
-    result = app.acquire_token_silent(GRAPH_SCOPE, account=None)
-    if not result:
-        result = app.acquire_token_for_client(scopes=GRAPH_SCOPE)
-    if "access_token" not in result:
-        raise RuntimeError(f"Azure AD auth error: {result}")
-    return result["access_token"]
+        if not all([self.tenant_id, self.client_id, self.client_secret]):
+            raise ValueError("Configuration Azure manquante: AZURE_TENANT_ID, AZURE_CLIENT_ID, ou AZURE_CLIENT_SECRET.")
 
-async def unread_and_mentions():
-    """Retourne un résumé Teams : nombre de messages récents et mentions."""
-    if not USE_LIVE:
-        return "Teams (mock) → 42 messages récents, 5 mentions (@)."
+        # Initialise l'application MSAL pour l'authentification
+        self.app = ConfidentialClientApplication(
+            self.client_id,
+            authority=f"https://login.microsoftonline.com/{self.tenant_id}",
+            client_credential=self.client_secret,
+        )
 
-    if not all([TENANT_ID, CLIENT_ID, CLIENT_SECRET, TEAM_ID, CHANNEL_ID]):
-        return "⚠️ Config manquante (tenant/client/secret/team/channel)."
+    def _get_token(self) -> str:
+        """
+        Récupère un jeton d'accès pour l'API Graph.
+        Tente d'abord de le récupérer depuis le cache, sinon en fait la demande.
+        """
+        result = self.app.acquire_token_silent(self.scope, account=None)
+        if not result:
+            result = self.app.acquire_token_for_client(scopes=self.scope)
 
-    token = _get_token()
-    headers = {"Authorization": f"Bearer {token}"}
-    url = f"{GRAPH_BASE}/teams/{TEAM_ID}/channels/{CHANNEL_ID}/messages"
-    params = {"$top": "30"}  # messages récents
+        if "access_token" not in result:
+            raise RuntimeError(f"Azure AD auth error: {result}")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        r = await client.get(url, headers=headers, params=params)
-        if r.status_code != 200:
-            return f"❌ Graph API error {r.status_code}: {r.text}"
-        data = r.json()
+        return result["access_token"]
 
-    values = data.get("value", [])
-    total = len(values)
+    def _get_auth_headers(self) -> dict:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
 
-    mentions = 0
-    for msg in values:
-        if "mentions" in msg and isinstance(msg["mentions"], list):
-            mentions += len(msg["mentions"])
-        else:
-            body = (msg.get("body") or {}).get("content") or ""
-            if "<at" in body:
-                mentions += body.count("<at")
+    def get(self, path, params=None):
+        """
+        Effectue une requête GET vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
 
-    return f"✅ Teams → {total} messages récents, {mentions} mentions."
+    def post(self, path, data=None):
+        """
+        Effectue une requête POST vers l'API Graph.
+        Le corps de la requête (data) est envoyé en JSON.
+        """
+        headers = self._get_auth_headers()
+        response = requests.post(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def put(self, path, data=None):
+        """
+        Effectue une requête PUT vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def delete(self, path, params=None):
+        """
+        Effectue une requête DELETE vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None

@@ -5,3 +5,5 @@ google-analytics-data
 pydantic
 requests
 mistralai
+msal
+python-dotenv

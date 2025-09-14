@@ -11,5 +11,7 @@ dependencies = [
     "pydantic",
     "requests",
     "python-dotenv",
-    "mistralai"
+    "mistralai",
+    "msal",
+    "httpx",
 ]
