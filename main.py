@@ -22,15 +22,6 @@ AUTH_MODE = os.getenv("AUTH_MODE", "delegueted").lower()
 print(f" Loading env file: {env_file}")
 load_dotenv(env_file)
 
-
-@mcp.tool(
-    title="Echo Tool",
-    description="Echo the input text",
-)
-def echo(text: str = Field(description="The text to echo")) -> str:
-    return text
-
-
 @mcp.tool()
 async def teams_find_team(name: str = Field(description="Nom (partiel) de l'équipe")) -> dict:
     """Retourne l'ID et infos d'une team par son nom."""
@@ -45,76 +36,6 @@ async def teams_find_channel(
     """Retourne l'ID et infos d'un canal par son nom."""
     res = await TeamsConnector.find_channel_by_name(team_id, name)
     return res or {"error": f"Aucun canal trouvé pour {name}"}
-
-
-
-
-@mcp.tool(
-    title="Great User",
-    description="Great the user",
-)
-def Greet(User: str = Field(description="The User to greet")) -> str:
-    Greetings = "Hello dear user :"+User
-    return Greetings
-
-
-@mcp.tool(
-    title="Teams Summary",
-    description="Get a summary of recent messages and mentions in the main Teams channel.",
-)
-async def teams_summary() -> str:
-    """Teams Summary: Number of recent messages and mentions in a given channel."""
-    try:
-        handler = TeamsHandler()
-        response = handler.handleGetUnreadAndMentions()
-
-        if response and 'content' in response and response['content']:
-            return response['content'][0].get('text', "Error: The response format is incorrect.")
-        else:
-            return "Unable to retrieve the summary from Teams (empty response)."
-    except Exception as e:
-        print(f"An error occurred in teams_summary: {e}")
-        return f"Sorry, an error occurred while contacting Teams."
-
-
-@mcp.tool(
-    title="Send_Message_Teams",
-    description="Send the input message to a designated channel or a user",
-)
-async def teams_send_message(text: str = Field(description="Contenu (HTML ou texte)")) -> str:
-    """Poster un message dans le canal Teams configuré."""
-    return await TeamsConnector.send_channel_message(text)
-
-@mcp.tool(
-    title="Reply_Message_Teams",
-    description="Answer in a thread on teams",
-)
-async def teams_reply(parent_message_id: str = Field(description="ID du message parent"),
-                      text: str = Field(description="Contenu (HTML ou texte)")) -> str:
-    """Répondre à un fil dans le canal."""
-    return await TeamsConnector.reply_to_message(parent_message_id, text)
-
-
-@mcp.tool(
-    title="Mention_People_Teams",
-    description="Send the input message to a designated channel or a user and ping the user",
-)
-async def teams_send_mention(user_id: str = Field(description="ID Graph de l'utilisateur mentionné"),
-                             display_name: str = Field(description="Nom à afficher"),
-                             text: str = Field(description="Texte additionnel")) -> str:
-    """Envoyer un message avec @mention d'un utilisateur."""
-    return await TeamsConnector.send_with_mention(user_id, display_name, text)
-
-
-@mcp.tool(
-    title="Trello Summary",
-    description="Trello Summary tool",
-)
-async def trello_summary() -> str:
-    """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
-    #return await trello_connector.sprint_summary()
-    pass
-
 
 @mcp.tool(
     title="List All Users",
