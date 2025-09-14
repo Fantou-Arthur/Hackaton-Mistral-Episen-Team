@@ -2,6 +2,15 @@
 
 import requests
 
+def _attendees_payload(emails: list[str]) -> list[dict]:
+    return [
+        {
+            "emailAddress": {"address": e.strip()},
+            "type": "required"
+        } for e in emails if e and e.strip()
+    ]
+
+
 class TrelloConnector:
     def __init__(self, api_key, token, base_url="https://api.trello.com/1/"):
         self.api_key = api_key

@@ -10,27 +10,87 @@ import httpx
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 USE_LIVE = os.getenv("USE_LIVE", "False").lower() == "true"
 
+def _attendees_payload(emails: list[str]) -> list[dict]:
+    return [
+        {
+            "emailAddress": {"address": e.strip()},
+            "type": "required"
+        } for e in emails if e and e.strip()
+    ]
+
 class TeamsConnector:
     """
     Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
     """
 
+    def _get_auth_headers(self) -> dict:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    async def create_teams_meeting(
+        self,
+        organizer_upn: str,
+        subject: str,
+        start_iso: str,
+        end_iso: str,
+        timezone: str = "Europe/Paris",
+        attendees: list[str] | None = None,
+        body_html: str | None = None,
+        location_display_name: str | None = None,
+        send_invitations: bool = True,   
+    ) -> dict:
+        event = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html or ""},
+            "start": {"dateTime": start_iso, "timeZone": timezone},
+            "end":   {"dateTime": end_iso,   "timeZone": timezone},
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+            "responseRequested": True,   
+            "importance": "high",   
+            "allowNewTimeProposals": True,   
+            "isReminderOn": True,   
+            "responseRequested": True,  
+        }
+        if attendees:
+            event["attendees"] = _attendees_payload(attendees)
+        if location_display_name:
+            event["location"] = {"displayName": location_display_name}
+
+        
+        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
+        if send_invitations:
+            url += "?sendInvitations=true"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, headers=self._get_auth_headers(), json=event)
+            if r.status_code >= 400:
+                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
+            data = r.json()
+            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
+            return {
+                "event": {
+                    "id": data.get("id"),
+                    "subject": data.get("subject"),
+                    "start": data.get("start"),
+                    "end": data.get("end"),
+                    "location": data.get("location"),
+                },
+                "joinUrl": join_url,
+                "raw": data
+            }
+
+
     
 
-    def _get_token():
-        """Récupère un access_token Graph via MSAL (application permission)."""
-        app = ConfidentialClientApplication(
-            CLIENT_ID,
-            authority=f"https://login.microsoftonline.com/{TENANT_ID}",
-            client_credential=CLIENT_SECRET,
-        )
-        result = app.acquire_token_silent(GRAPH_SCOPE, account=None)
-        if not result:
-            result = app.acquire_token_for_client(scopes=GRAPH_SCOPE)
-        if "access_token" not in result:
-            raise RuntimeError(f"Azure AD auth error: {result}")
-        return result["access_token"]
+
 
 
 
@@ -70,89 +130,6 @@ class TeamsConnector:
             raise RuntimeError(f"Azure AD auth error: {result}")
 
         return result["access_token"]
-
-    def _get_auth_headers(self) -> dict:
-        """
-        Construit les en-têtes d'autorisation avec le jeton Bearer.
-        """
-        token = self._get_token()
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-
-    def get(self, path, params=None):
-        """
-        Effectue une requête GET vers l'API Graph.
-        """
-        headers = self._get_auth_headers()
-        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
-        response.raise_for_status()
-        # Certaines réponses GET réussies peuvent ne pas avoir de corps (ex: 204 No Content)
-        return response.json() if response.content else None
-
-    def post(self, path, data=None):
-        """
-        Effectue une requête POST vers l'API Graph.
-        Le corps de la requête (data) est envoyé en JSON.
-        """
-        headers = self._get_auth_headers()
-        response = requests.post(f"{self.base_url}{path}", headers=headers, json=data)
-        response.raise_for_status()
-        return response.json() if response.content else None
-
-    def put(self, path, data=None):
-        """
-        Effectue une requête PUT vers l'API Graph.
-        """
-        headers = self._get_auth_headers()
-        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
-        response.raise_for_status()
-        return response.json() if response.content else None
-
-    def delete(self, path, params=None):
-        """
-        Effectue une requête DELETE vers l'API Graph.
-        """
-        headers = self._get_auth_headers()
-        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
-        response.raise_for_status()
-        return response.json() if response.content else None
-
-    async def find_team_by_name(name):
-        """Recherche une team par displayName."""
-        if not USE_LIVE:
-            return {"id": "team-mock", "displayName": name}
-        teams = await _paged_collect(f"{GRAPH_BASE}/groups?$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&$top=50")
-        for t in teams:
-            if name.lower() in (t.get("displayName") or "").lower():
-                return {"id": t["id"], "displayName": t["displayName"]}
-        return None
-
-
-    async def find_channel_by_name(team_id, name):
-        """Recherche un canal par nom dans une team donnée."""
-        if not USE_LIVE:
-            return {"id": "channel-mock", "displayName": name}
-        chans = await _paged_collect(f"{GRAPH_BASE}/teams/{team_id}/channels")
-        for c in chans:
-            if name.lower() in (c.get("displayName") or "").lower():
-                return {"id": c["id"], "displayName": c["displayName"]}
-        return None
-
-
-    async def find_user_by_email(email):
-        """Recherche un utilisateur par email (UserPrincipalName)."""
-        if not USE_LIVE:
-            return {"id": "user-mock", "displayName": email}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.get(f"{GRAPH_BASE}/users/{email}", headers=_headers())
-            if r.status_code == 200:
-                u = r.json()
-                return {"id": u["id"], "displayName": u.get("displayName"), "mail": u.get("mail")}
-        return None
-    
-
 
 
     async def list_all_users(self, select: str | None = "id,displayName,mail,userPrincipalName",
@@ -199,3 +176,5 @@ class TeamsConnector:
                 url = data.get("@odata.nextLink")
 
         return items
+
+    

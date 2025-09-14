@@ -16,6 +16,7 @@ mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=Tr
 
 
 env_file = os.getenv("ENV_FILE", ".env.production")
+AUTH_MODE = os.getenv("AUTH_MODE", "delegueted").lower()
 
 print(f" Loading env file: {env_file}")
 load_dotenv(env_file)
@@ -44,13 +45,6 @@ async def teams_find_channel(
     res = await TeamsConnector.find_channel_by_name(team_id, name)
     return res or {"error": f"Aucun canal trouvé pour {name}"}
 
-@mcp.tool()
-async def teams_find_user(
-    email: str = Field(description="Email ou UserPrincipalName de l'utilisateur")
-) -> dict:
-    """Retourne l'ID Graph d'un utilisateur par son email."""
-    res = await TeamsConnector.find_user_by_email(email)
-    return res or {"error": f"Aucun utilisateur trouvé pour {email}"}
 
 
 
@@ -152,6 +146,59 @@ async def teams_list_users(
     except Exception as e:
         return {"error": f"teams_list_users failed: {e!s}"}
 
+
+
+
+def _parse_dt(s: str) -> str:
+    """Convertit une date naturelle/ISO en 'YYYY-MM-DDTHH:MM:SS' (sans TZ)."""
+    # On laisse le fuseau géré par 'timezone' côté Graph
+    return dtparser.parse(s).replace(tzinfo=None).isoformat(timespec="seconds")
+
+@mcp.tool(
+    title="Planifier une réunion Teams",
+    description="Crée un événement calendrier avec lien Teams et invite des participants."
+)
+async def schedule_teams_meeting(
+    organizer_upn: str = Field(description="UPN de l'organisateur (compte qui s'authentifie)"),
+    subject: str = Field(description="Sujet de la réunion"),
+    start: str = Field(description="Début (ex: '2025-09-14 14:00' ou ISO 8601)"),
+    end: str = Field(description="Fin (ex: '2025-09-14 15:00' ou ISO 8601)"),
+    timezone: str = Field(default="Europe/Paris", description="Fuseau horaire (ex: 'Europe/Paris')"),
+    attendees_csv: str = Field(default="", description="Emails des invités, séparés par des virgules"),
+    body_html: str = Field(default="", description="Description/agenda en HTML"),
+    location: str = Field(default="", description="Texte libre du lieu (optionnel)")
+) -> dict:
+    """
+    Retour: event.id, joinUrl, échos des champs.
+    """
+    try:
+        conn = TeamsConnector()
+        start_iso = _parse_dt(start)
+        end_iso   = _parse_dt(end)
+        attendees = [x.strip() for x in attendees_csv.split(",")] if attendees_csv else []
+
+        res = await conn.create_teams_meeting(
+            organizer_upn=organizer_upn,
+            subject=subject,
+            start_iso=start_iso,
+            end_iso=end_iso,
+            timezone=timezone,
+            attendees=attendees,
+            body_html=body_html,
+            location_display_name=(location or None),
+        )
+        return {
+            "status": "created",
+            "eventId": res["event"]["id"],
+            "subject": subject,
+            "start": res["event"]["start"],
+            "end": res["event"]["end"],
+            "joinUrl": res["joinUrl"],
+            "attendees": attendees,
+            "timezone": timezone,
+        }
+    except Exception as e:
+        return {"error": f"schedule_teams_meeting failed: {e}"}
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
