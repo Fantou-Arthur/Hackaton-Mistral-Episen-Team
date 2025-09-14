@@ -134,6 +134,10 @@ async def trello_summary() -> str:
     pass
 
 
+@mcp.tool(
+    title="Teams List Team Members",
+    description="Lists all members of the main Teams team.",
+)
 async def teams_list_members() -> str:
     """Lists all team members."""
     try:
@@ -152,6 +156,19 @@ async def teams_list_members() -> str:
     except Exception as e:
         print(f"Une erreur s'est produite dans teams_list_members: {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams: {e}."
+
+@mcp.tool(
+    title="Teams List All Private Chats",
+    description="Lists all your private chat IDs and the display names of the other participants.",
+)
+async def teams_list_private_chats() -> str:
+    """Lists all your private chat IDs."""
+    try:
+        handler = TeamsHandler()
+        return handler.handleListPrivateChats()
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la liste des discussions privées : {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
 
 @mcp.tool(
     title="Teams Get Private Chat Messages",
