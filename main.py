@@ -17,10 +17,7 @@ MistralClient = MistralAI()
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
-env_file = os.getenv("ENV_FILE", ".env.production")
-
-print(f" Loading env file: {env_file}")
-load_dotenv(env_file)
+load_dotenv()
 
 @mcp.tool(
     title="Echo Tool",
