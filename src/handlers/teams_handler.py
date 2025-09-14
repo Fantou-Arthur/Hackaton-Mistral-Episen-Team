@@ -38,7 +38,8 @@ class TeamsHandler:
         Recherche et retourne l'ID d'une discussion privée basée sur le nom d'utilisateur d'un participant.
         """
         try:
-            path = "me/chats?$filter=chatType eq 'oneOnOne'"
+            # Requête pour obtenir toutes les discussions
+            path = "me/chats"
             response_data = self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
@@ -46,14 +47,15 @@ class TeamsHandler:
 
             chats = response_data['value']
             for chat in chats:
-                chat_id = chat.get('id')
-                # Obtenez les membres de la discussion
-                members_path = f"chats/{chat_id}/members"
-                members_data = self.api.get(members_path)
-                if members_data and 'value' in members_data:
-                    for member in members_data['value']:
-                        if member.get('displayName') == user_name:
-                            return chat_id
+                # Filtrer en Python les discussions de type 'oneOnOne'
+                if chat.get('chatType') == 'oneOnOne':
+                    chat_id = chat.get('id')
+                    members_path = f"chats/{chat_id}/members"
+                    members_data = self.api.get(members_path)
+                    if members_data and 'value' in members_data:
+                        for member in members_data['value']:
+                            if member.get('displayName') == user_name:
+                                return chat_id
             return None
         except Exception as e:
             print(f"Erreur lors de la recherche de la discussion : {e}")
@@ -194,7 +196,8 @@ class TeamsHandler:
             return self._format_response("[MOCK] Liste des discussions privées.")
 
         try:
-            path = "me/chats?$filter=chatType eq 'oneOnOne'"
+            # Requête sans filtre pour éviter les erreurs d'autorisation
+            path = "me/chats"
             response_data = self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
@@ -204,19 +207,22 @@ class TeamsHandler:
             result_parts = ["Liste des discussions privées :\n"]
 
             for chat in chats:
-                chat_id = chat.get('id')
-                # Obtenez les membres de la discussion
-                members_path = f"chats/{chat_id}/members"
-                members_data = self.api.get(members_path)
+                # Filtrer les discussions de type 'oneOnOne' en Python
+                if chat.get('chatType') == 'oneOnOne':
+                    chat_id = chat.get('id')
+                    # Obtenez les membres de la discussion
+                    members_path = f"chats/{chat_id}/members"
+                    members_data = self.api.get(members_path)
 
-                if members_data and 'value' in members_data:
-                    display_names = [member.get('displayName') for member in members_data['value']]
-                    # Filtrez le nom de l'utilisateur actuel
-                    display_names = [name for name in display_names if name]
+                    if members_data and 'value' in members_data:
+                        display_names = [member.get('displayName') for member in members_data['value']]
+                        # Filtrez le nom de l'utilisateur actuel
+                        display_names = [name for name in display_names if name]
 
-                    if len(display_names) > 1:
-                        partner_name = [name for name in display_names if name != os.getenv("TEAMS_USER_DISPLAY_NAME")]
-                        result_parts.append(f"- ID: {chat_id}, Participants: {', '.join(partner_name)}")
+                        if len(display_names) > 1:
+                            partner_name = [name for name in display_names if
+                                            name != os.getenv("TEAMS_USER_DISPLAY_NAME")]
+                            result_parts.append(f"- ID: {chat_id}, Participants: {', '.join(partner_name)}")
 
             result_text = "\n".join(result_parts)
             return self._format_response(result_text)
