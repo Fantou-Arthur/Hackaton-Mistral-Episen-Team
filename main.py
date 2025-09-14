@@ -10,7 +10,6 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from tools.methods import ToolsMethods
 from tools.mistral import MistralAI
-from connectors import teams_connector
 from handlers.teams_handler import TeamsHandler
 
 MistralClient = MistralAI() 
