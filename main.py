@@ -11,20 +11,14 @@ from pydantic import Field
 from tools.methods import ToolsMethods
 from tools.mistral import MistralAI
 from handlers.teams_handler import TeamsHandler
+from connectors.teams_connector import TeamsConnector
+from dateutil import parser as dtparser
 
 MistralClient = MistralAI() 
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
 load_dotenv()
-
-@mcp.tool(
-    title="Echo Tool",
-    description="Echo the input text",
-)
-def echo(text: str = Field(description="The text to echo")) -> str:
-    return text
-
 
 
 
@@ -243,6 +237,53 @@ async def teams_get_private_messages(chat_id: str) -> str:
     except Exception as e:
         print(f"Une erreur s'est produite lors de la lecture des messages privés : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
+    
+
+@mcp.tool(
+    title="Planifier une réunion Teams",
+    description="Crée un événement calendrier avec lien Teams et invite des participants."
+)
+async def schedule_teams_meeting(
+    organizer_upn: str = Field(description="UPN de l'organisateur (compte qui s'authentifie)"),
+    subject: str = Field(description="Sujet de la réunion"),
+    start: str = Field(description="Début (ex: '2025-09-14 14:00' ou ISO 8601)"),
+    end: str = Field(description="Fin (ex: '2025-09-14 15:00' ou ISO 8601)"),
+    timezone: str = Field(default="Europe/Paris", description="Fuseau horaire (ex: 'Europe/Paris')"),
+    attendees_csv: str = Field(default="", description="Emails des invités, séparés par des virgules"),
+    body_html: str = Field(default="", description="Description/agenda en HTML"),
+    location: str = Field(default="", description="Texte libre du lieu (optionnel)")
+) -> dict:
+    """
+    Retour: event.id, joinUrl, échos des champs.
+    """
+    try:
+        conn = TeamsConnector()
+        start_iso = _parse_dt(start)
+        end_iso   = _parse_dt(end)
+        attendees = [x.strip() for x in attendees_csv.split(",")] if attendees_csv else []
+
+        res = await conn.create_teams_meeting(
+            organizer_upn=organizer_upn,
+            subject=subject,
+            start_iso=start_iso,
+            end_iso=end_iso,
+            timezone=timezone,
+            attendees=attendees,
+            body_html=body_html,
+            location_display_name=(location or None),
+        )
+        return {
+            "status": "created",
+            "eventId": res["event"]["id"],
+            "subject": subject,
+            "start": res["event"]["start"],
+            "end": res["event"]["end"],
+            "joinUrl": res["joinUrl"],
+            "attendees": attendees,
+            "timezone": timezone,
+        }
+    except Exception as e:
+        return {"error": f"schedule_teams_meeting failed: {e}"}
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

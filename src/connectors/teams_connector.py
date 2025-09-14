@@ -3,8 +3,19 @@
 
 import os
 import requests
+import httpx
 from msal import ConfidentialClientApplication
+from typing import Dict, Any, Optional, List
 
+GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+
+def _attendees_payload(emails: List[str]) -> List[Dict]:
+    return [
+        {
+            "emailAddress": {"address": e.strip()},
+            "type": "required"
+        } for e in emails if e and e.strip()
+    ]
 
 class TeamsConnector:
     """
@@ -92,3 +103,65 @@ class TeamsConnector:
         response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
         response.raise_for_status()
         return response.json() if response.content else None
+    
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    
+    async def create_teams_meeting(
+        self,
+        organizer_upn: str,
+        subject: str,
+        start_iso: str,
+        end_iso: str,
+        timezone: str = "Europe/Paris",
+        attendees: Optional[List[str]] = None,
+        body_html: Optional[str] = None,
+        location_display_name: Optional[str] = None,
+        send_invitations: bool = True,
+    ) -> Dict[str, Any]:
+        event = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html or ""},
+            "start": {"dateTime": start_iso, "timeZone": timezone},
+            "end":   {"dateTime": end_iso,   "timeZone": timezone},
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+            "responseRequested": True,
+            "importance": "high",
+            "allowNewTimeProposals": True,
+            "isReminderOn": True,
+            "responseRequested": True,
+        }
+        if attendees:
+            event["attendees"] = _attendees_payload(attendees)
+        if location_display_name:
+            event["location"] = {"displayName": location_display_name}
+
+        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
+        if send_invitations:
+            url += "?sendInvitations=true"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, headers=self._get_auth_headers(), json=event)
+            if r.status_code >= 400:
+                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
+            data = r.json()
+            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
+            return {
+                "event": {
+                    "id": data.get("id"),
+                    "subject": data.get("subject"),
+                    "start": data.get("start"),
+                    "end": data.get("end"),
+                    "location": data.get("location"),
+                },
+                "joinUrl": join_url,
+                "raw": data
+            }
