@@ -19,9 +19,9 @@ async def main():
     chat = await conn.create_one_on_one_chat(USER_A, USER_B)
     print("   Chat ID:", chat.get("id"))
 
-    print("✉️ Envoi du message …")
+    print(" Envoi du message …")
     msg = await conn.send_chat_message(chat["id"], "<p>Hello depuis le hackathon 🚀</p>")
-    print("✅ OK — messageId:", msg.get("id"))
+    print(" OK — messageId:", msg.get("id"))
 
   
 
