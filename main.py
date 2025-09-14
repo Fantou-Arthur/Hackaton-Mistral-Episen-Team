@@ -21,25 +21,6 @@ load_dotenv(env_file)
 
 
 @mcp.tool(
-    title="Echo Tool",
-    description="Echo the input text",
-)
-def echo(text: str = Field(description="The text to echo")) -> str:
-    return text
-
-
-
-
-@mcp.tool(
-    title="Great User",
-    description="Great the user",
-)
-def Greet(User: str = Field(description="The User to greet")) -> str:
-    Greetings = "Hello dear user :"+User
-    return Greetings
-
-
-@mcp.tool(
     title="Teams Summary",
     description="Get a summary of recent messages and mentions in the main Teams channel.",
 )
@@ -83,16 +64,6 @@ async def teams_read_thread(parent_message_id: str) -> str:
     except Exception as e:
         print(f"Une erreur s'est produite lors de la lecture du thread : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
-
-@mcp.tool(
-    title="Trello Summary",
-    description="Trello Summary tool",
-)
-async def trello_summary() -> str:
-    """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
-    #return await trello_connector.sprint_summary()
-    pass
-
 
 @mcp.tool(
     title="Teams List Team Members",
