@@ -22,6 +22,7 @@ class TeamsHandler:
         )
         self.team_id = os.getenv("TEAMS_TEAM_ID")
         self.channel_id = os.getenv("TEAMS_CHANNEL_ID")
+        self.user_id = os.getenv("TEAMS_USER_ID")  # Ajout de cette ligne
         self.use_live = os.getenv("USE_LIVE", "false").lower() == "true"
 
     def _check_config(self):
@@ -63,41 +64,50 @@ class TeamsHandler:
             print(f"Erreur lors de la récupération des membres de l'équipe: {e}")
             return self._format_response(f"Erreur de l'API Graph: {e}")
 
-    def handleGetPrivateMessages(self, chat_id: str):
+    def handleListPrivateChats(self):
         """
-        Récupère et affiche les messages d'une discussion privée avec un ID de chat spécifique.
+        Récupère et liste toutes les discussions privées de l'utilisateur.
         """
         if not self.use_live:
-            return self._format_response(f"[MOCK] Messages privés du chat ID: {chat_id}.")
+            return self._format_response("[MOCK] Liste des discussions privées.")
 
         try:
-            self._check_config()
-            path = f"chats/{chat_id}/messages"
+            # Récupérer l'ID de l'utilisateur depuis les variables d'environnement
+            user_id = os.getenv("TEAMS_USER_ID")
+            if not user_id:
+                raise ValueError("TEAMS_USER_ID n'est pas configuré dans les variables d'environnement.")
+
+            # Utiliser l'endpoint 'users/{id}/chats' au lieu de 'me/chats'
+            path = f"users/{user_id}/chats?$filter=chatType eq 'oneOnOne'"
             response_data = self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
-                return self._format_response(f"L'API a renvoyé une réponse vide pour le chat ID: {chat_id}.")
+                return self._format_response("L'API a renvoyé une réponse vide. Aucune discussion privée trouvée.")
 
-            messages = response_data.get('value', [])
-            result_parts = [f"Discussion privée (chat ID: {chat_id}) ({len(messages)} messages):\n"]
+            chats = response_data.get('value', [])
+            result_parts = ["Liste des discussions privées :\n"]
 
-            for i, message in enumerate(messages, 1):
-                created_at = message.get('createdDateTime')
-                sender = message.get('from', {})
-                sender_name = sender.get('user', {}).get('displayName', 'Nom inconnu')
-                message_content = message.get('body', {}).get('content', 'Pas de contenu')
+            for chat in chats:
+                chat_id = chat.get('id')
+                members_path = f"chats/{chat_id}/members"
+                members_data = self.api.get(members_path)
 
-                result_parts.append(f"--- Message {i} ---")
-                result_parts.append(f"Envoyé par : {sender_name}")
-                result_parts.append(f"Date : {created_at}")
-                result_parts.append(f"Contenu : {message_content.strip()}")
-                result_parts.append("\n" + "-" * 30 + "\n")
+                if members_data and 'value' in members_data:
+                    display_names = [member.get('displayName') for member in members_data['value']]
+                    # Filtrez le nom de l'utilisateur actuel
+                    display_names = [name for name in display_names if name]
+
+                    # On affiche seulement l'autre participant
+                    partner_names = [name for name in display_names if name != os.getenv("TEAMS_USER_DISPLAY_NAME")]
+
+                    if partner_names:
+                        result_parts.append(f"- ID: {chat_id}, Participants: {', '.join(partner_names)}")
 
             result_text = "\n".join(result_parts)
             return self._format_response(result_text)
 
         except Exception as e:
-            print(f"Erreur lors de la récupération des messages privés : {e}")
+            print(f"Erreur lors de la liste des discussions privées : {e}")
             return self._format_response(f"Erreur de l'API Graph : {e}")
 
     def handleListPrivateChats(self):
