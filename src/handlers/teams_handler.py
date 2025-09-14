@@ -186,6 +186,45 @@ class TeamsHandler:
             print(f"Erreur lors de la récupération des messages privés : {e}")
             return self._format_response(f"Erreur de l'API Graph : {e}")
 
+    def handleListPrivateChats(self):
+        """
+        Récupère et liste toutes les discussions privées de l'utilisateur.
+        """
+        if not self.use_live:
+            return self._format_response("[MOCK] Liste des discussions privées.")
+
+        try:
+            path = "me/chats?$filter=chatType eq 'oneOnOne'"
+            response_data = self.api.get(path)
+
+            if response_data is None or 'value' not in response_data:
+                return self._format_response("L'API a renvoyé une réponse vide. Aucune discussion privée trouvée.")
+
+            chats = response_data.get('value', [])
+            result_parts = ["Liste des discussions privées :\n"]
+
+            for chat in chats:
+                chat_id = chat.get('id')
+                # Obtenez les membres de la discussion
+                members_path = f"chats/{chat_id}/members"
+                members_data = self.api.get(members_path)
+
+                if members_data and 'value' in members_data:
+                    display_names = [member.get('displayName') for member in members_data['value']]
+                    # Filtrez le nom de l'utilisateur actuel
+                    display_names = [name for name in display_names if name]
+
+                    if len(display_names) > 1:
+                        partner_name = [name for name in display_names if name != os.getenv("TEAMS_USER_DISPLAY_NAME")]
+                        result_parts.append(f"- ID: {chat_id}, Participants: {', '.join(partner_name)}")
+
+            result_text = "\n".join(result_parts)
+            return self._format_response(result_text)
+
+        except Exception as e:
+            print(f"Erreur lors de la liste des discussions privées : {e}")
+            return self._format_response(f"Erreur de l'API Graph : {e}")
+
     def handleSendChannelMessage(self, text: str):
         """
         Poste un message simple dans le canal configuré.
