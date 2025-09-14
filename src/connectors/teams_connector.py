@@ -1,16 +1,18 @@
 # Teams API Wrapper using Microsoft Graph
+# Merged version supporting both sync and async operations, with additional methods for meetings and user listing
 
 import os
-import requests
+import asyncio
+import httpx
 from msal import ConfidentialClientApplication
 from urllib.parse import quote
-import httpx
+from typing import Dict, Any, Optional, List
 
 # Constantes Graph
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 USE_LIVE = os.getenv("USE_LIVE", "False").lower() == "true"
 
-def _attendees_payload(emails: list[str]) -> list[dict]:
+def _attendees_payload(emails: List[str]) -> List[Dict]:
     return [
         {
             "emailAddress": {"address": e.strip()},
@@ -22,88 +24,17 @@ class TeamsConnector:
     """
     Un connecteur pour l'API Microsoft Graph, spécifiquement pour Teams.
     Gère l'authentification OAuth2 pour obtenir un jeton d'accès.
+    Supporte les opérations synchrones et asynchrones.
     """
 
-    def _get_auth_headers(self) -> dict:
-        """
-        Construit les en-têtes d'autorisation avec le jeton Bearer.
-        """
-        token = self._get_token()
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-
-    async def create_teams_meeting(
-        self,
-        organizer_upn: str,
-        subject: str,
-        start_iso: str,
-        end_iso: str,
-        timezone: str = "Europe/Paris",
-        attendees: list[str] | None = None,
-        body_html: str | None = None,
-        location_display_name: str | None = None,
-        send_invitations: bool = True,   
-    ) -> dict:
-        event = {
-            "subject": subject,
-            "body": {"contentType": "HTML", "content": body_html or ""},
-            "start": {"dateTime": start_iso, "timeZone": timezone},
-            "end":   {"dateTime": end_iso,   "timeZone": timezone},
-            "isOnlineMeeting": True,
-            "onlineMeetingProvider": "teamsForBusiness",
-            "responseRequested": True,   
-            "importance": "high",   
-            "allowNewTimeProposals": True,   
-            "isReminderOn": True,   
-            "responseRequested": True,  
-        }
-        if attendees:
-            event["attendees"] = _attendees_payload(attendees)
-        if location_display_name:
-            event["location"] = {"displayName": location_display_name}
-
-        
-        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
-        if send_invitations:
-            url += "?sendInvitations=true"
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.post(url, headers=self._get_auth_headers(), json=event)
-            if r.status_code >= 400:
-                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
-            data = r.json()
-            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
-            return {
-                "event": {
-                    "id": data.get("id"),
-                    "subject": data.get("subject"),
-                    "start": data.get("start"),
-                    "end": data.get("end"),
-                    "location": data.get("location"),
-                },
-                "joinUrl": join_url,
-                "raw": data
-            }
-
-
-    
-
-
-
-
-
-    def __init__(self, base_url="https://graph.microsoft.com/v1.0/"):
+    def __init__(self, tenant_id: Optional[str] = None, client_id: Optional[str] = None,
+                 client_secret: Optional[str] = None, base_url: str = "https://graph.microsoft.com/v1.0/"):
         """
         Initialise le connecteur en chargeant la configuration depuis les variables d'environnement.
         """
-        # Note: Il est recommandé de charger les variables d'environnement
-        # (ex: avec `from dotenv import load_dotenv; load_dotenv()`)
-        # avant d'instancier ce connecteur.
-        self.tenant_id = os.getenv("AZURE_TENANT_ID")
-        self.client_id = os.getenv("AZURE_CLIENT_ID")
-        self.client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID")
+        self.client_id = client_id or os.getenv("AZURE_CLIENT_ID")
+        self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET")
         self.base_url = base_url
         self.scope = ["https://graph.microsoft.com/.default"]
 
@@ -131,17 +62,161 @@ class TeamsConnector:
 
         return result["access_token"]
 
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        Construit les en-têtes d'autorisation avec le jeton Bearer.
+        """
+        token = self._get_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
 
-    async def list_all_users(self, select: str | None = "id,displayName,mail,userPrincipalName",
-                             filter_expr: str | None = None,
-                             page_size: int = 50) -> list[dict]:
+    # Synchronous methods (using requests for compatibility)
+    def get(self, path: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête GET synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def post(self, path: str, data: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête POST synchrone vers l'API Graph.
+        Le corps de la requête (data) est envoyé en JSON.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.post(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def put(self, path: str, data: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête PUT synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    def delete(self, path: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+        """
+        Effectue une requête DELETE synchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        import requests
+        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
+        response.raise_for_status()
+        return response.json() if response.content else None
+
+    # Asynchronous methods (using httpx)
+    async def aget(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Effectue une requête GET asynchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(f"{self.base_url}{path}", headers=headers, params=params)
+            response.raise_for_status()
+            return response.json() if response.content else {}
+
+    async def apost(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Effectue une requête POST asynchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{self.base_url}{path}", headers=headers, json=data)
+            response.raise_for_status()
+            return response.json() if response.content else {}
+
+    async def aput(self, path: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Effectue une requête PUT asynchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.put(f"{self.base_url}{path}", headers=headers, json=data)
+            response.raise_for_status()
+            return response.json() if response.content else {}
+
+    async def adelete(self, path: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Effectue une requête DELETE asynchrone vers l'API Graph.
+        """
+        headers = self._get_auth_headers()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.delete(f"{self.base_url}{path}", headers=headers, params=params)
+            response.raise_for_status()
+            return response.json() if response.content else {}
+
+    async def create_teams_meeting(
+        self,
+        organizer_upn: str,
+        subject: str,
+        start_iso: str,
+        end_iso: str,
+        timezone: str = "Europe/Paris",
+        attendees: Optional[List[str]] = None,
+        body_html: Optional[str] = None,
+        location_display_name: Optional[str] = None,
+        send_invitations: bool = True,
+    ) -> Dict[str, Any]:
+        event = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html or ""},
+            "start": {"dateTime": start_iso, "timeZone": timezone},
+            "end":   {"dateTime": end_iso,   "timeZone": timezone},
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+            "responseRequested": True,
+            "importance": "high",
+            "allowNewTimeProposals": True,
+            "isReminderOn": True,
+            "responseRequested": True,
+        }
+        if attendees:
+            event["attendees"] = _attendees_payload(attendees)
+        if location_display_name:
+            event["location"] = {"displayName": location_display_name}
+
+        url = f"{GRAPH_BASE}/users/{organizer_upn}/events"
+        if send_invitations:
+            url += "?sendInvitations=true"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(url, headers=self._get_auth_headers(), json=event)
+            if r.status_code >= 400:
+                raise RuntimeError(f"Create meeting failed: {r.status_code} {r.text}")
+            data = r.json()
+            join_url = (data.get("onlineMeeting") or {}).get("joinUrl")
+            return {
+                "event": {
+                    "id": data.get("id"),
+                    "subject": data.get("subject"),
+                    "start": data.get("start"),
+                    "end": data.get("end"),
+                    "location": data.get("location"),
+                },
+                "joinUrl": join_url,
+                "raw": data
+            }
+
+    async def list_all_users(self, select: Optional[str] = "id,displayName,mail,userPrincipalName",
+                             filter_expr: Optional[str] = None,
+                             page_size: int = 50) -> List[Dict]:
         """
         Récupère tous les utilisateurs AAD via /users avec pagination.
         - select: champs à retourner (CSV), ex: "id,displayName,mail,userPrincipalName"
         - filter_expr: filtre OData optionnel, ex: "accountEnabled eq true"
         - page_size: taille de page ($top), max conseillé 999 au plus, 50 par défaut
         """
-        if not True:
+        if not USE_LIVE:
             # Mode mock pour tests hors-ligne
             return [
                 {"id": "user-mock-1", "displayName": "Alice Mock", "mail": "alice@example.com", "userPrincipalName": "alice@example.com"},
@@ -155,12 +230,10 @@ class TeamsConnector:
         if filter_expr:
             # Encoder le filtre OData proprement
             params.append(f"$filter={quote(filter_expr, safe=' ()\"\'=<>!andornulltruefalse.,')}")
-        url = f"{GRAPH_BASE}/users?{'&'.join(params)}"
 
-        items: list[dict] = []
+        url = f"{self.base_url}/users?{'&'.join(params)}"
+        items: List[Dict] = []
         headers = self._get_auth_headers()
-        # Si tu utilises $count/$filter avancé, parfois ConsistencyLevel:eventual est requis
-        # headers["ConsistencyLevel"] = "eventual"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             while url:
@@ -176,5 +249,3 @@ class TeamsConnector:
                 url = data.get("@odata.nextLink")
 
         return items
-
-    
