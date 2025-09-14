@@ -84,45 +84,6 @@ async def teams_read_thread(parent_message_id: str) -> str:
         print(f"Une erreur s'est produite lors de la lecture du thread : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
 
-
-@mcp.tool(
-    title="Teams Reply to Thread",
-    description="Replies to a specific message thread with new text.",
-)
-async def teams_reply_to_thread(parent_message_id: str, text: str) -> str:
-    """Replies to a specific message thread."""
-    try:
-        handler = TeamsHandler()
-        response = handler.handleReplyToMessage(parent_message_id, text)
-
-        if response and 'content' in response and isinstance(response['content'], list) and len(response['content']) > 0:
-            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
-        else:
-            return "Impossible de répondre au thread de Teams (réponse vide)."
-    except Exception as e:
-        print(f"Une erreur s'est produite lors de la réponse au thread : {e}")
-        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
-
-
-@mcp.tool(
-    title="Send_Message_Teams",
-    description="Send the input message to a designated channel or a user",
-)
-async def teams_send_message(text: str = Field(description="Contenu (HTML ou texte)")) -> str:
-    """Poster un message dans le canal Teams configuré."""
-    return await teams_connector.send_channel_message(text)
-
-@mcp.tool(
-    title="Mention_People_Teams",
-    description="Send the input message to a designated channel or a user and ping the user",
-)
-async def teams_send_mention(user_id: str = Field(description="ID Graph de l'utilisateur mentionné"),
-                             display_name: str = Field(description="Nom à afficher"),
-                             text: str = Field(description="Texte additionnel")) -> str:
-    """Envoyer un message avec @mention d'un utilisateur."""
-    return await teams_connector.send_with_mention(user_id, display_name, text)
-
-
 @mcp.tool(
     title="Trello Summary",
     description="Trello Summary tool",
