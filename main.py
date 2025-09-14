@@ -12,7 +12,7 @@ from tools.methods import ToolsMethods
 from tools.mistral import MistralAI
 from handlers.teams_handler import TeamsHandler
 from connectors.teams_connector import TeamsConnector
-from dateutil import parser as dtparser
+from dateutil import parser as _parse_dt
 
 MistralClient = MistralAI() 
 
