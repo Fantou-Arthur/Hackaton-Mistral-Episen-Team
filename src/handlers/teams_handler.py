@@ -109,6 +109,45 @@ class TeamsHandler:
             print(f"Erreur lors de la liste des discussions privées : {e}")
             return self._format_response(f"Erreur de l'API Graph : {e}")
 
+    def handleGetPrivateMessages(self, chat_id: str):
+        """
+        Récupère les messages d'un chat privé donné son ID.
+        """
+        if not self.use_live:
+            return self._format_response(f"[MOCK] Messages du chat privé {chat_id}.")
+
+        try:
+            path = f"chats/{chat_id}/messages"
+            response_data = self.api.get(path)
+
+            if response_data is None or 'value' not in response_data:
+                return self._format_response("L'API a renvoyé une réponse vide. Aucun message trouvé.")
+
+            messages = response_data.get('value', [])
+            result_parts = [f"Messages du chat ID {chat_id}:\n"]
+
+            for i, message in enumerate(messages, 1):
+                sender = message.get('from')
+                sender_name = 'Nom inconnu'
+                if sender and sender.get('user'):
+                    sender_name = sender['user'].get('displayName', 'Nom inconnu')
+                message_body = message.get('body', {}).get('content', 'Pas de contenu')
+                created_at = message.get('createdDateTime')
+
+                result_parts.append("--- Message {} ---".format(i))
+                result_parts.append("Envoyé par : {}".format(sender_name))
+                result_parts.append("Date : {}".format(created_at))
+                result_parts.append("Contenu : {}".format(message_body.strip()))
+                result_parts.append("\n" + "-" * 30 + "\n")
+
+            result_text = "\n".join(result_parts)
+            return self._format_response(result_text)
+
+        except Exception as e:
+            print(f"Erreur lors de la récupération des messages privés : {e}")
+            return self._format_response(f"Erreur de l'API Graph : {e}")
+
+
     def handleGetChannelMessages(self, hours: int = 24):
         """
         Récupère et affiche tous les messages d'un canal, comme dans le script d'exemple.
