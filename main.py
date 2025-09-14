@@ -12,14 +12,16 @@ from tools.methods import ToolsMethods
 from tools.mistral import MistralAI
 from handlers.teams_handler import TeamsHandler
 from connectors.teams_connector import TeamsConnector
-from dateutil import parser as _parse_dt
+from dateutil import parser as dtparser
+
+def _parse_dt(s: str) -> str:
+    return dtparser.parse(s).replace(tzinfo=None).isoformat(timespec="seconds")
 
 MistralClient = MistralAI() 
 
 mcp = FastMCP("EPISEN_AI_TEAM_SUPPORT", port=3000, stateless_http=True, debug=True)
 
 load_dotenv()
-
 
 
 @mcp.tool(
