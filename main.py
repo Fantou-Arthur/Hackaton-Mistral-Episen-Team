@@ -8,6 +8,7 @@ from pydantic import Field
 from dotenv import load_dotenv
 from connectors.teams_connector import TeamsConnector
 from handlers.teams_handler import TeamsHandler
+from dateutil import parser as dtparser
 
   
 
