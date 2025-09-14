@@ -132,6 +132,23 @@ async def trello_summary() -> str:
     """Résumé de l’état des tickets Trello (ToDo, Doing, Done, Blocked)."""
     #return await trello_connector.sprint_summary()
     pass
+@mcp.tool(
+    title="Teams Get Private Messages",
+    description="Gets messages from a private chat with a specific user.",
+)
+async def teams_get_private_messages(user_name: str) -> str:
+    """Gets messages from a private chat with a specific user."""
+    try:
+        handler = TeamsHandler()
+        response = handler.handleGetPrivateMessages(user_name)
+
+        if response and 'content' in response and isinstance(response['content'], list) and len(response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
+        else:
+            return "Impossible de lire les messages privés de Teams (réponse vide)."
+    except Exception as e:
+        print(f"Une erreur s'est produite lors de la lecture des messages privés : {e}")
+        return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
 
 
 if __name__ == "__main__":
