@@ -148,3 +148,18 @@ class TrelloHandler:
         except Exception as e:
             print(f"Error removing member from card: {e}")
             return None
+        
+    # Add Card to List
+    def handleAddCardToList(self, list_id, card_name, card_desc=None, due_date=None):
+        try:
+            payload = {'name': card_name}
+            if card_desc:
+                payload['desc'] = card_desc
+            if due_date:
+                payload['due'] = due_date
+            payload['idList'] = list_id
+            card = self.api.post(f"cards", data=payload)
+            return {'id': card['id'], 'name': card['name'], 'desc': card.get('desc'), 'due': card.get('due'), 'idList': card['idList'], 'idBoard': card['idBoard']}
+        except Exception as e:
+            print(f"Error adding card to list: {e}")
+            return None

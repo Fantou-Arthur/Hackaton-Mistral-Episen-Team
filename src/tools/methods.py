@@ -57,6 +57,7 @@ class ToolsMethods:
             for date in dates:
                 if date["dueComplete"] == False:
                     event_details.append(date)
+            import json
             return json.dumps(event_details, indent=2)
 
         except Exception as e:
@@ -88,4 +89,22 @@ class ToolsMethods:
             return json.dumps(response, indent=2)
         except Exception as e:
             print(f"Error removing member from card: {e}")
+            return None
+
+    def addNewTaskToList(self, list_id, task_name, task_desc=""):
+        try:
+            response = self.trello.handleAddCardToList(list_id, task_name, task_desc)
+            import json
+            return json.dumps(response, indent=2)
+        except Exception as e:
+            print(f"Error adding new card to list: {e}")
+            return None
+    
+    def getAllBoardLists(self, board_id):
+        try:
+            lists = self.trello.handleGetListForBoard(board_id)
+            import json
+            return json.dumps(lists, indent=2)
+        except Exception as e:
+            print(f"Error fetching board lists: {e}")
             return None

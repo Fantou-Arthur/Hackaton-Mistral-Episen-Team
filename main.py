@@ -110,5 +110,23 @@ async def trello_Due_date_from_imcompleteTask(project_name: str = Field(descript
     except Exception as e:
         return "An error occurred while trying to fetch Trello data. The Trello API might be unavailable."
 
+@mcp.tool(
+    title="Add New Task to List",
+    description="Add a new task to a specific Trello List",
+)
+async def add_new_task_to_list(list_id: str = Field(description="The ID of the Trello List to add the task to"), task_name: str = Field(description="The name of the task to add"), task_desc: str = Field(description="The description of the task to add")) -> str:
+    return ToolsMethods().addNewTaskToList(list_id, task_name, task_desc)
+
+@mcp.tool(
+    title="Get all Lists",
+    description="Get all Lists from Trello Board",
+)
+async def get_all_lists(board_id: str = Field(description="The ID of the Trello Board to get lists from")) -> str:
+    try:
+        return ToolsMethods().getAllBoardLists(board_id)
+    except Exception as e:
+        return "An error occurred while trying to fetch Trello data. The Trello API might be unavailable."
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
