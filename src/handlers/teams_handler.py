@@ -1,9 +1,11 @@
+# teams_handler.py - Merged Handler for Teams operations
+
 import os
 import json
 from dotenv import load_dotenv
 from connectors import teams_connector
 from datetime import datetime, timedelta, timezone
-
+import asyncio
 
 class TeamsHandler:
     """
@@ -15,11 +17,7 @@ class TeamsHandler:
         Initialise le handler, charge les variables d'environnement et crée une instance du connecteur.
         """
         load_dotenv()
-        self.api = teams_connector.TeamsConnector(
-            tenant_id=os.getenv("AZURE_TENANT_ID"),
-            client_id=os.getenv("AZURE_CLIENT_ID"),
-            client_secret=os.getenv("AZURE_CLIENT_SECRET")
-        )
+        self.api = teams_connector.TeamsConnector()
         self.team_id = os.getenv("TEAMS_TEAM_ID")
         self.channel_id = os.getenv("TEAMS_CHANNEL_ID")
         self.user_id = os.getenv("TEAMS_USER_ID")
@@ -34,7 +32,7 @@ class TeamsHandler:
         """Met en forme la réponse dans la structure attendue."""
         return {'content': [{'type': 'text', 'text': text_content}]}
 
-    def handleListTeamMembers(self):
+    async def handleListTeamMembers(self):
         """
         Récupère et liste tous les membres de l'équipe.
         """
@@ -44,7 +42,7 @@ class TeamsHandler:
         try:
             self._check_config()
             path = f"teams/{self.team_id}/members"
-            response_data = self.api.get(path)
+            response_data = await self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
                 return self._format_response("L'API a renvoyé une réponse vide. Aucun membre trouvé.")
@@ -64,7 +62,7 @@ class TeamsHandler:
             print(f"Erreur lors de la récupération des membres de l'équipe: {e}")
             return self._format_response(f"Erreur de l'API Graph: {e}")
 
-    def handleListPrivateChats(self):
+    async def handleListPrivateChats(self):
         """
         Récupère et liste toutes les discussions privées de l'utilisateur.
         """
@@ -78,7 +76,7 @@ class TeamsHandler:
 
             # Correction de l'URL de l'API : utiliser /users/{user-id}/chats au lieu de /me/chats
             path = f"users/{self.user_id}/chats?$filter=chatType eq 'oneOnOne'"
-            response_data = self.api.get(path)
+            response_data = await self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
                 return self._format_response("L'API a renvoyé une réponse vide. Aucune discussion privée trouvée.")
@@ -89,7 +87,7 @@ class TeamsHandler:
             for chat in chats:
                 chat_id = chat.get('id')
                 members_path = f"chats/{chat_id}/members"
-                members_data = self.api.get(members_path)
+                members_data = await self.api.get(members_path)
 
                 if members_data and 'value' in members_data:
                     display_names = [member.get('displayName') for member in members_data['value']]
@@ -109,7 +107,7 @@ class TeamsHandler:
             print(f"Erreur lors de la liste des discussions privées : {e}")
             return self._format_response(f"Erreur de l'API Graph : {e}")
 
-    def handleGetPrivateMessages(self, chat_id: str):
+    async def handleGetPrivateMessages(self, chat_id: str):
         """
         Récupère les messages d'un chat privé donné son ID.
         """
@@ -118,7 +116,7 @@ class TeamsHandler:
 
         try:
             path = f"chats/{chat_id}/messages"
-            response_data = self.api.get(path)
+            response_data = await self.api.get(path)
 
             if response_data is None or 'value' not in response_data:
                 return self._format_response("L'API a renvoyé une réponse vide. Aucun message trouvé.")
@@ -147,8 +145,7 @@ class TeamsHandler:
             print(f"Erreur lors de la récupération des messages privés : {e}")
             return self._format_response(f"Erreur de l'API Graph : {e}")
 
-
-    def handleGetChannelMessages(self, hours: int = 24):
+    async def handleGetChannelMessages(self, hours: int = 24):
         """
         Récupère et affiche tous les messages d'un canal, comme dans le script d'exemple.
         """
@@ -158,7 +155,7 @@ class TeamsHandler:
         try:
             self._check_config()
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
-            response_data = self.api.get(path)
+            response_data = await self.api.get(path)
 
             if response_data is None:
                 return self._format_response(
@@ -190,7 +187,7 @@ class TeamsHandler:
             print(f"Error fetching Teams messages: {e}")
             return self._format_response(f"Graph API error: {e}")
 
-    def handleGetThreadMessages(self, parent_message_id: str):
+    async def handleGetThreadMessages(self, parent_message_id: str):
         """
         Récupère et affiche tous les messages d'un thread.
         """
@@ -201,7 +198,7 @@ class TeamsHandler:
         try:
             self._check_config()
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages/{parent_message_id}/replies"
-            response_data = self.api.get(path)
+            response_data = await self.api.get(path)
 
             if response_data is None:
                 return self._format_response(
@@ -231,7 +228,7 @@ class TeamsHandler:
             print(f"Error fetching Teams thread messages: {e}")
             return self._format_response(f"Graph API error: {e}")
 
-    def handleSendChannelMessage(self, text: str):
+    async def handleSendChannelMessage(self, text: str):
         """
         Poste un message simple dans le canal configuré.
         """
@@ -242,14 +239,14 @@ class TeamsHandler:
             self._check_config()
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
             payload = {"body": {"contentType": "html", "content": text}}
-            msg = self.api.post(path, data=payload)
+            msg = await self.api.post(path, data=payload)
             result_text = f"Envoyé. messageId={msg.get('id')}"
             return self._format_response(result_text)
         except Exception as e:
             print(f"Error sending Teams message: {e}")
             return self._format_response(f"Envoi échoué: {e}")
 
-    def handleReplyToMessage(self, parent_message_id: str, text: str):
+    async def handleReplyToMessage(self, parent_message_id: str, text: str):
         """
         Répond à un message spécifique dans un thread.
         """
@@ -260,14 +257,14 @@ class TeamsHandler:
             self._check_config()
             path = f"teams/{self.team_id}/channels/{self.channel_id}/messages/{parent_message_id}/replies"
             payload = {"body": {"contentType": "html", "content": text}}
-            msg = self.api.post(path, data=payload)
+            msg = await self.api.post(path, data=payload)
             result_text = f"Réponse envoyée. replyId={msg.get('id')}"
             return self._format_response(result_text)
         except Exception as e:
             print(f"Error replying to Teams message: {e}")
             return self._format_response(f"Réponse échouée: {e}")
 
-    def handleSendWithMention(self, user_id: str, display_name: str, text: str):
+    async def handleSendWithMention(self, user_id: str, display_name: str, text: str):
         """
         Poste un message avec une mention d'un utilisateur.
         """
@@ -288,9 +285,32 @@ class TeamsHandler:
                     "mentioned": {"user": {"id": user_id}}
                 }]
             }
-            msg = self.api.post(path, data=payload)
+            msg = await self.api.post(path, data=payload)
             result_text = f"Envoyé avec mention. messageId={msg.get('id')}"
             return self._format_response(result_text)
         except Exception as e:
             print(f"Error sending mention: {e}")
             return self._format_response(f"Mention échouée: {e}")
+
+    async def handleGetUnreadAndMentions(self):
+        """
+        Récupère un résumé des messages récents et des mentions dans un canal.
+        """
+        if not self.use_live:
+            return self._format_response("Teams (mock) → 42 messages récents, 5 mentions (@).")
+
+        try:
+            self._check_config()
+            path = f"teams/{self.team_id}/channels/{self.channel_id}/messages"
+            params = {"$top": "30"}
+            data = await self.api.get(path, params=params)
+
+            values = data.get("value", [])
+            total = len(values)
+            mentions = sum(len(msg.get("mentions", [])) for msg in values if msg.get("mentions"))
+
+            result_text = f"Teams → {total} messages récents, {mentions} mentions."
+            return self._format_response(result_text)
+        except Exception as e:
+            print(f"Error fetching Teams messages: {e}")
+            return self._format_response(f"Graph API error: {e}")
