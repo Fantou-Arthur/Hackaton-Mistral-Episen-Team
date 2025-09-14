@@ -33,6 +33,32 @@ class TeamsHandler:
         """Met en forme la réponse dans la structure attendue."""
         return {'content': [{'type': 'text', 'text': text_content}]}
 
+    def _get_chat_id_by_user_name(self, user_name: str):
+        """
+        Recherche et retourne l'ID d'une discussion privée basée sur le nom d'utilisateur d'un participant.
+        """
+        try:
+            path = "me/chats?$filter=chatType eq 'oneOnOne'"
+            response_data = self.api.get(path)
+
+            if response_data is None or 'value' not in response_data:
+                return None
+
+            chats = response_data['value']
+            for chat in chats:
+                chat_id = chat.get('id')
+                # Obtenez les membres de la discussion
+                members_path = f"chats/{chat_id}/members"
+                members_data = self.api.get(members_path)
+                if members_data and 'value' in members_data:
+                    for member in members_data['value']:
+                        if member.get('displayName') == user_name:
+                            return chat_id
+            return None
+        except Exception as e:
+            print(f"Erreur lors de la recherche de la discussion : {e}")
+            return None
+
     def handleGetChannelMessages(self, hours: int = 24):
         """
         Récupère et affiche tous les messages d'un canal, comme dans le script d'exemple.
@@ -115,6 +141,50 @@ class TeamsHandler:
         except Exception as e:
             print(f"Error fetching Teams thread messages: {e}")
             return self._format_response(f"Graph API error: {e}")
+
+    def handleGetPrivateMessages(self, user_name: str):
+        """
+        Récupère et affiche les messages d'une discussion privée avec un utilisateur spécifique.
+        """
+        if not self.use_live:
+            return self._format_response(f"[MOCK] Messages privés avec {user_name}.")
+
+        try:
+            self._check_config()
+            chat_id = self._get_chat_id_by_user_name(user_name)
+
+            if not chat_id:
+                return self._format_response(f"Aucune discussion privée trouvée avec {user_name}.")
+
+            path = f"chats/{chat_id}/messages"
+            response_data = self.api.get(path)
+
+            if response_data is None or 'value' not in response_data:
+                return self._format_response(f"L'API a renvoyé une réponse vide pour le chat avec {user_name}.")
+
+            messages = response_data.get('value', [])
+            result_parts = [f"Discussion privée avec {user_name} ({len(messages)} messages):\n"]
+
+            for i, message in enumerate(messages, 1):
+                created_at = message.get('createdDateTime')
+                sender = message.get('from')
+                sender_name = 'Nom inconnu'
+                if sender and sender.get('user'):
+                    sender_name = sender['user'].get('displayName', 'Nom inconnu')
+                message_body = message.get('body', {}).get('content', 'Pas de contenu')
+
+                result_parts.append(f"--- Message {i} ---")
+                result_parts.append(f"Envoyé par : {sender_name}")
+                result_parts.append(f"Date : {created_at}")
+                result_parts.append(f"Contenu : {message_body.strip()}")
+                result_parts.append("\n" + "-" * 30 + "\n")
+
+            result_text = "\n".join(result_parts)
+            return self._format_response(result_text)
+
+        except Exception as e:
+            print(f"Erreur lors de la récupération des messages privés : {e}")
+            return self._format_response(f"Erreur de l'API Graph : {e}")
 
     def handleSendChannelMessage(self, text: str):
         """
