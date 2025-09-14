@@ -158,6 +158,7 @@ async def teams_list_members() -> str:
         print(f"Une erreur s'est produite dans teams_list_members: {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams: {e}."
 
+
 @mcp.tool(
     title="Teams List All Private Chats",
     description="Lists all your private chat IDs and the display names of the other participants.",
@@ -166,7 +167,16 @@ async def teams_list_private_chats() -> str:
     """Lists all your private chat IDs."""
     try:
         handler = TeamsHandler()
-        return handler.handleListPrivateChats()
+        # Appel de la méthode qui retourne un dictionnaire
+        response = handler.handleListPrivateChats()
+
+        # Vérification du format de la réponse et extraction de la chaîne de caractères
+        if response and 'content' in response and isinstance(response['content'], list) and len(
+                response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
+        else:
+            return "Impossible de lister les discussions privées (réponse vide ou incorrecte)."
+
     except Exception as e:
         print(f"Une erreur s'est produite lors de la liste des discussions privées : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
