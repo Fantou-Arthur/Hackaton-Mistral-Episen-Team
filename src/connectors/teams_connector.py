@@ -6,6 +6,7 @@ import requests
 from msal import ConfidentialClientApplication
 from urllib.parse import quote
 import httpx
+from typing import Dict, Any, Optional, List
 
 # Constantes Graph
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
@@ -130,9 +131,9 @@ class TeamsConnector:
         return result["access_token"]
 
 
-    async def list_all_users(self, select: str | None = "id,displayName,mail,userPrincipalName",
-                             filter_expr: str | None = None,
-                             page_size: int = 50) -> list[dict]:
+    async def list_all_users(self, select: Optional[str] = "id,displayName,mail,userPrincipalName",
+                             filter_expr: Optional[str] = None,
+                             page_size: int = 50) -> List[Dict]:
         """
         Récupère tous les utilisateurs AAD via /users avec pagination.
         - select: champs à retourner (CSV), ex: "id,displayName,mail,userPrincipalName"
@@ -153,15 +154,10 @@ class TeamsConnector:
         if filter_expr:
             # Encoder le filtre OData proprement
             params.append(f"$filter={quote(filter_expr, safe=' ()\"\'=<>!andornulltruefalse.,')}")
-        url = f"{GRAPH_BASE}/users?{'&'.join(params)}"
 
-        items: list[dict] = []
+        url = f"{self.base_url}/users?{'&'.join(params)}"
+        items: List[Dict] = []
         headers = self._get_auth_headers()
-        # Si tu utilises $count/$filter avancé, parfois ConsistencyLevel:eventual est requis
-        # headers["ConsistencyLevel"] = "eventual"
-        response = requests.get(f"{self.base_url}{path}", headers=headers, params=params)
-        response.raise_for_status()
-        return response.json() if response.content else None
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             while url:
@@ -177,22 +173,3 @@ class TeamsConnector:
                 url = data.get("@odata.nextLink")
 
         return items
-
-    
-    def put(self, path, data=None):
-        """
-        Effectue une requête PUT vers l'API Graph.
-        """
-        headers = self._get_auth_headers()
-        response = requests.put(f"{self.base_url}{path}", headers=headers, json=data)
-        response.raise_for_status()
-        return response.json() if response.content else None
-
-    def delete(self, path, params=None):
-        """
-        Effectue une requête DELETE vers l'API Graph.
-        """
-        headers = self._get_auth_headers()
-        response = requests.delete(f"{self.base_url}{path}", headers=headers, params=params)
-        response.raise_for_status()
-        return response.json() if response.content else None
