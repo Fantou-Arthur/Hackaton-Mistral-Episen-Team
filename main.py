@@ -189,11 +189,19 @@ async def teams_get_private_messages(chat_id: str) -> str:
     """Gets messages from a private chat with a specific chat ID."""
     try:
         handler = TeamsHandler()
-        return handler.handleGetPrivateMessages(chat_id)
+        # The handler returns a dictionary. We need to extract the string.
+        response = handler.handleGetPrivateMessages(chat_id)
+
+        # Check if the response is valid and extract the string content
+        if response and 'content' in response and isinstance(response['content'], list) and len(
+                response['content']) > 0:
+            return response['content'][0].get('text', "Erreur : le format de la réponse est incorrect.")
+        else:
+            return "Impossible de récupérer les messages privés (réponse vide ou incorrecte)."
+
     except Exception as e:
         print(f"Une erreur s'est produite lors de la lecture des messages privés : {e}")
         return f"Désolé, une erreur s'est produite en contactant Teams : {e}."
-
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
