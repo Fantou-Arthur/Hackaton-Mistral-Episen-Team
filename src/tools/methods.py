@@ -1,4 +1,3 @@
-import json
 from dotenv import load_dotenv
 from handlers import trello_handler
 
@@ -14,7 +13,6 @@ class ToolsMethods:
             cards = self.trello.handleGetCardsForBoard(board_id)
 
             import json
-
             return json.dumps({
                 'board': board,
                 'lists': lists,
@@ -34,6 +32,7 @@ class ToolsMethods:
                     if member_info:
                         member_details.append(member_info)
                 card['memberDetails'] = member_details
+            import json
             return json.dumps({
                 'board_id': json.dumps(board_id, indent=2),
                 'overdue_cards': json.dumps(cards, indent=2)
@@ -45,6 +44,7 @@ class ToolsMethods:
     def addCommentToCard(self, card_id, comment_text):
         try:
             response = self.trello.handleAddCommentToCard(card_id, comment_text)
+            import json
             return json.dumps(response, indent=2)
         except Exception as e:
             print(f"Error adding comment to card: {e}")
@@ -61,4 +61,31 @@ class ToolsMethods:
 
         except Exception as e:
             print(f"Error fetching board details: {e}")
+            return None
+
+    def getBoardMembers(self, board_id):
+        try:
+            members = self.trello.handleGetBoardMembers(board_id)
+            import json
+            return json.dumps(members, indent=2)
+        except Exception as e:
+            print(f"Error fetching board members: {e}")
+            return None
+
+    def assignMemberToTask(self, card_id, member_id):
+        try:
+            response = self.trello.handleAssignMemberToCard(card_id, member_id)
+            import json
+            return json.dumps(response, indent=2)
+        except Exception as e:
+            print(f"Error assigning member to card: {e}")
+            return None
+
+    def removeMemberFromTask(self, card_id, member_id):
+        try:
+            response = self.trello.handleRemoveMemberFromCard(card_id, member_id)
+            import json
+            return json.dumps(response, indent=2)
+        except Exception as e:
+            print(f"Error removing member from card: {e}")
             return None

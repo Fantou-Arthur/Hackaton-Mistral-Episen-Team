@@ -69,6 +69,35 @@ async def trello_project_overdue_tasks(project_name: str = Field(description="Th
 async def add_comment_to_trello_task(card_id: str = Field(description="The ID of the Trello Task to comment on"), comment_text: str = Field(description="The comment text to add")) -> str:
     return ToolsMethods().addCommentToCard(card_id, comment_text)
 
+@mcp.tool(
+    title="Get Trello Board Members",
+    description="Get members of a specific Trello Board",
+)
+async def get_trello_board_members(board_id: str = Field(description="The ID of the Trello Board to get members from")) -> str:
+    return ToolsMethods().getBoardMembers(board_id)
+
+@mcp.tool(
+    title="Assign Task to Member",
+    description="Assign a Trello Task to a specific member",
+)
+async def assign_task_to_member(card_id: str = Field(description="The ID of the Trello Task to assign"), member_id: str = Field(description="The ID of the member to assign the task to")) -> str:
+    try:
+        return ToolsMethods().assignMemberToTask(card_id, member_id)
+    except Exception as e:
+        print(f"Error assigning member to card: {e}")
+        return None
+    
+@mcp.tool(
+    title="Remove Task from Member",
+    description="Remove a Trello Task from a specific member",
+)
+async def remove_task_from_member(card_id: str = Field(description="The ID of the Trello Task to remove"), member_id: str = Field(description="The ID of the member to remove the task from")) -> str:
+    try:
+        return ToolsMethods().removeMemberFromTask(card_id, member_id)
+    except Exception as e:
+        print(f"Error removing member from card: {e}")
+        return None
+
 
 @mcp.tool(
     title="Trello Due date from imcompleteTask",

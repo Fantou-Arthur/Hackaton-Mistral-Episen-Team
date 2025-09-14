@@ -79,7 +79,16 @@ class TrelloHandler:
         except Exception as e:
             print(f"Error fetching overdue tasks: {e}")
             return None
-    
+        
+    def handleGetBoardMembers(self, board_id):
+        try:
+            members = self.api.get(f"boards/{board_id}/members")
+            return [{'id': m['id'], 'fullName': m['fullName'], 'username': m['username']} for m in members]
+                    
+        except Exception as e:
+            print(f"Error fetching board members: {e}")
+            return None
+        
     # Comments on cards
     def handleGetCommentsForCard(self, card_id):
         try:
@@ -110,4 +119,32 @@ class TrelloHandler:
                     in opencard]
         except Exception as e:
             print(f"Error fetching lists: {e}")
+            return None
+    
+    def handleGetCardMembers(self, card_id):
+        try:
+            card = self.api.get(f"cards/{card_id}")
+            member_ids = card.get('idMembers', [])
+            members = [self.handleGetMemberDetails(mid) for mid in member_ids]
+            return members
+        except Exception as e:
+            print(f"Error fetching card members: {e}")
+            return None
+        
+    # Assign member to card
+    def handleAssignMemberToCard(self, card_id, member_id):
+        try:
+            self.api.post(f"cards/{card_id}/idMembers", data={'value': member_id})
+            return {'status': 'success', 'message': f'Member {member_id} assigned to card {card_id}'}
+        except Exception as e:
+            print(f"Error assigning member to card: {e}")
+            return None
+        
+    # Remove member from card
+    def handleRemoveMemberFromCard(self, card_id, member_id):
+        try:
+            self.api.delete(f"cards/{card_id}/idMembers/{member_id}")
+            return {'status': 'success', 'message': f'Member {member_id} removed from card {card_id}'}
+        except Exception as e:
+            print(f"Error removing member from card: {e}")
             return None
